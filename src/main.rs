@@ -8,6 +8,7 @@ fn main() {
 
 
     let data = load_source_file(&args[1]);
+    println!("File: {}", data);
     let tokens = lexer::tokenize(&data);
     println!("{:?}", tokens);
 }
