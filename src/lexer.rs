@@ -1,27 +1,63 @@
-use std::collections::hash_map;
-
-pub struct token{
-    pub name: &str,
-    pub value: &str
+#[derive(Debug)]
+pub struct Token{
+    pub name: &'static str,
+    pub value: String
 }
 
-let keywords: HashMap<&str, bool> = [("fn", true), ("int", true), ("string", true), ("print", true)].iter().cloned().collect(); //set up a hashmap of keywords to check against later
-
+#[derive(PartialEq, Debug)]
 enum State{
-    em_string,
-    em_var
+    Nothing,
+    EmString,
+    EmName
 }
 
-pub fn tokenize(data:str)->Vec<token>{
+pub fn tokenize(data:&str)->Vec<Token>{
+
     let mut result = vec!();
     let mut tok = String::new();
+    let mut current_state = State::Nothing;
 
+    let ch = data.chars();
 
-
-    for c in data.chars().iter(){
+    for c in ch {
+        //println!("{:?}", current_state);
         tok.push(c);
-        if tok == String::from("\"") {
-
+        if c == '"' {
+            if current_state == State::EmString {
+                tok.pop();
+                result.push(Token{name:"string", value:tok.clone()});
+                tok = format!("");
+                current_state = State::Nothing;
+            }else {
+                current_state = State::EmString;
+                tok = format!("");
+            }
+        } else if tok == format!("fn") { //check for all keywords before adding names
+            result.push(Token{name:"symbol", value:tok.clone()});
+            current_state = State::Nothing;
+            tok = format!("");
+        } else if tok == format!("print") {
+            result.push(Token{name:"symbol", value:tok.clone()});
+            current_state = State::Nothing;
+            tok = format!("");
+        } else if tok == format!("{{") {
+            result.push(Token{name:"openblock", value:tok.clone()});
+            current_state = State::Nothing;
+            tok = format!("");
+        } else if tok == format!("}}") {
+            result.push(Token{name:"closeblock", value:tok.clone()});
+            current_state = State::Nothing;
+            tok = format!("");
+        } else if c.is_whitespace() && current_state == State::EmName {
+            tok.pop();
+            result.push(Token{name:"name", value:tok.clone()});
+            current_state = State::Nothing;
+            tok = format!("");
+        } else if c.is_whitespace() && current_state == State::Nothing {
+            current_state = State::EmName;
+            tok = format!("");
         }
     }
+
+    result //return the result
 }
