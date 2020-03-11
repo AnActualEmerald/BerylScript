@@ -1,0 +1,30 @@
+{
+  "name": "emeraldscript",
+  "version": "0.0.1",
+  "description": "A small programming language that probably sucks",
+  "main": "main.js",
+  "scripts": {
+    "test": "node ./src/main.js ./test.em",
+    "start": "node ./src/main.js"
+
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AnActualEmerald/EmeraldScript.git"
+  },
+  "keywords": [
+    "Script",
+    "Language",
+    "Homebrew",
+    "Homemade"
+  ],
+  "author": "Emerald",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AnActualEmerald/EmeraldScript/issues"
+  },
+  "homepage": "https://github.com/AnActualEmerald/EmeraldScript#readme",
+  "dependencies": {
+    "package.json": "^2.0.1"
+  }
+}

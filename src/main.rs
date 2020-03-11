@@ -1,4 +1,4 @@
-mod lexer;
+mod compiler;
 
 use std::fs;
 use std::env;
@@ -9,7 +9,7 @@ fn main() {
 
     let data = load_source_file(&args[1]);
     println!("File: {}", data);
-    let tokens = lexer::tokenize(&data);
+    let tokens = compiler::tokenize(&data);
     println!("{:?}", tokens);
 }
 

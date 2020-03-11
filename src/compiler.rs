@@ -59,10 +59,10 @@ pub fn tokenize(data:&str)->Vec<Token>{
                 _ => {}
             }
             match c {
-                '{' => result.push(Token{name:"lbracket", value:c.to_string()}),
-                '}' => result.push(Token{name:"rbracket", value:c.to_string()}),
-                '(' => result.push(Token{name:"lparen", value:c.to_string()}),
-                ')' => result.push(Token{name:"rparen", value:c.to_string()}),
+                '{' => result.push(Token{name:"symb", value:c.to_string()}),
+                '}' => result.push(Token{name:"symb", value:c.to_string()}),
+                '(' => result.push(Token{name:"symb", value:c.to_string()}),
+                ')' => result.push(Token{name:"symb", value:c.to_string()}),
                 '=' => result.push(Token{name:"equals", value:c.to_string()}),
                 ';' => result.push(Token{name:"semicolon", value:c.to_string()}),
                 _ => {}
@@ -88,4 +88,40 @@ pub fn tokenize(data:&str)->Vec<Token>{
     }
 
     result //return the result
+}
+
+//compiler stuff
+
+
+
+// pub struct TreeObj {
+//     pub token: Token
+// }
+
+
+
+pub fn tree_gen(tokens: Vec<Token>) -> Vec<(Option<Token>, Option<Token>, Option<Token>)> {
+    let mut ast = vec!();
+    let mut iter = tokens.iter();
+    for t in iter {
+        match t.name {
+            "keyword" => {
+                let word = &t.value;
+                // let arg = iter.next().unwrap().value.clone();
+
+            },
+            "name" => {
+
+            },
+            "symb" => {
+
+            },
+            _ => {}
+        }
+    }
+    
+
+
+
+    ast
 }
