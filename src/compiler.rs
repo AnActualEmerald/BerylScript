@@ -3,10 +3,17 @@ extern crate regex;
 use regex::Regex;
 use std::str;
 
-#[derive(Debug)]
-pub struct Token{
-    pub name: &'static str,
-    pub value: String
+/** Enums are more idomatic and make the resulting Vec much easier to understand
+ *  I may need more types to make things easier to work with but for now I think
+ *  this should suffice
+ **/
+#[derive(Debug, Clone, PartialEq)]
+pub enum Expression{
+    Ident (String),
+    Operator (char),
+    Number (f64),
+    Word (String),
+    Semicolon,
 }
 
 #[derive(PartialEq, Debug)]
@@ -17,7 +24,7 @@ enum State{
     EmNumber
 }
 
-pub fn tokenize(data:&str)->Vec<Token>{
+pub fn tokenize(data:&str)->Vec<Expression>{
 
     let mut result = vec!();
     let mut tok = String::new();
@@ -44,7 +51,7 @@ pub fn tokenize(data:&str)->Vec<Token>{
         if c == '"' {
             if current_state == State::EmString {
                 tok.pop();
-                result.push(Token{name:"string", value:tok.clone()});
+                result.push(Expression::Word(tok.clone()));
                 tok = format!("");
                 current_state = State::Nothing;
             }else {
@@ -54,28 +61,28 @@ pub fn tokenize(data:&str)->Vec<Token>{
         } else if valid_symb.is_match(&tok) || c.is_whitespace() && current_state != State::EmString {
             if !c.is_whitespace() {tok.pop();}
             match current_state {
-                State::EmName => result.push(Token{name:"name", value:tok.clone()}),
-                State::EmNumber => result.push(Token{name:"number", value:tok.clone()}),
+                State::EmName => result.push(Expression::Ident(tok.clone())),
+                State::EmNumber => result.push(Expression::Number(tok.clone().parse::<f64>().unwrap())),
                 _ => {}
             }
             match c {
-                '{' => result.push(Token{name:"symb", value:c.to_string()}),
-                '}' => result.push(Token{name:"symb", value:c.to_string()}),
-                '(' => result.push(Token{name:"symb", value:c.to_string()}),
-                ')' => result.push(Token{name:"symb", value:c.to_string()}),
-                '=' => result.push(Token{name:"equals", value:c.to_string()}),
-                ';' => result.push(Token{name:"semicolon", value:c.to_string()}),
+                '{' => result.push(Expression::Operator(c)),
+                '}' => result.push(Expression::Operator(c)),
+                '(' => result.push(Expression::Operator(c)),
+                ')' => result.push(Expression::Operator(c)),
+                '=' => result.push(Expression::Operator(c)),
+                ';' => result.push(Expression::Semicolon),
                 _ => {}
             }
             tok = format!("");
             current_state = State::Nothing;
         } else if valid_chars.is_match(&tok) && current_state != State::EmString{
             if tok == format!("fn") { //check for all keywords
-                result.push(Token{name:"keyword", value:tok.clone()});
+                result.push(Expression::Ident(tok.clone()));
                 current_state = State::Nothing;
                 tok = format!("");
             } else if tok == format!("print") {
-                result.push(Token{name:"keyword", value:tok.clone()});
+                result.push(Expression::Ident(tok.clone()));
                 current_state = State::Nothing;
                 tok = format!("");
             } else{
