@@ -11,6 +11,8 @@ fn main() {
     println!("File: {}", data);
     let tokens = compiler::tokenize(&data);
     println!("{:?}", tokens);
+    let ast = compiler::tree_gen(tokens);
+    println!("{:?}", ast);
 }
 
 
