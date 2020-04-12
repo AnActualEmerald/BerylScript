@@ -1,52 +1,56 @@
-use super::compiler::*;
+use super::compiler::{ExprNode, Expression};
+use std::collections::HashMap;
 
-//implement a trait on ExprNode to make compiling easier
-trait Comp {
-    fn compile(&self, stack: &mut Vec<Box<instr>>);
+enum Value {
+    Null,
+    Int(i32),
+    EmString(String),
+    Char(u8),
+    Function,
 }
 
-trait Runner {
-    fn run<T>(&self, stack: Vec<T>);
+struct StackFrame {
+    stack: HashMap<String, Value>,
 }
 
-impl Comp for super::compiler::ExprNode {
-    fn compile(&self, stack: &mut Vec<Box<instr>>) {
-        match self {
-            ExprNode::Block(v) => {
-                for t in v {
-                    t.compile(stack);
-                }
-            }
-            ExprNode::Call(e, n) => match &**e {
-                Expression::Key(k) => match k.trim() {
-                    "print" => {
-                        // if let ExprNode::Literal(v) = **n {
-                        //     match &*v {
-                        //         Expression::Number(num) => stack.push(Box::new(instr {
-                        //             func: &|| print!("{}", num.clone()),
-                        //         })),
-                        //         _ => {}
-                        //     }
-                        // }
+struct Runtime {
+    tree: ExprNode,
+    stack: Vec<StackFrame>,
+}
+
+pub fn run(tree: ExprNode) {
+    let mut r = Runtime {
+        tree: tree.clone(),
+        stack: vec![],
+    };
+    r.find_global_vars();
+    // r.walk_tree(&tree);
+}
+
+impl Runtime {
+    fn find_global_vars(&mut self) {
+        if let ExprNode::Block(v) = &self.tree {
+            let mut globFrame = StackFrame {
+                stack: HashMap::new(),
+            };
+            v.iter().for_each(|e| match e {
+                ExprNode::Operation(oper, left, right) => {
+                    if let Expression::Equal = **oper {
+                        if let ExprNode::Literal(l) = &**left {
+                            if let Expression::Ident(s) = &**l {
+                                let value = self.walk_tree(right); // this is all very ugly but idk how to fix it
+                                globFrame.stack.insert(String::from(s), value);
+                            }
+                        }
                     }
-                    _ => {}
-                },
+                }
                 _ => {}
-            },
-            ExprNode::Operation(o, l, r) => {}
-            _ => panic!("Uhhhhh this shouldn't be possible, what did you do"),
+            });
+            self.stack.push(globFrame);
         }
     }
-}
 
-pub struct instr {
-    func: &'static (dyn Fn() + 'static),
+    fn walk_tree(&self, node: &ExprNode) -> Value {
+        Value::Null
+    }
 }
-
-pub fn compile(root: ExprNode) -> Vec<Box<instr>> {
-    let mut stack = vec![];
-    root.compile(&mut stack);
-    stack
-}
-
-pub fn run() {}

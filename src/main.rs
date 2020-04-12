@@ -11,9 +11,9 @@ fn main() {
     println!("File: {}", data);
     let tokens = compiler::tokenize(&data);
     println!("{:?}", tokens);
-    let ast = compiler::tree_gen(tokens);
+    let ast = compiler::parse(tokens);
     println!("{:?}", ast);
-    interpreter::compile(ast);
+    // interpreter::run(ast);
 }
 
 fn load_source_file(path: &str) -> String {

@@ -119,7 +119,7 @@ pub enum ExprNode {
     EOF,
 }
 
-pub fn tree_gen(tokens: Vec<Expression>) -> ExprNode {
+pub fn parse(tokens: Vec<Expression>) -> ExprNode {
     //let root = vec!();
     let mut iter = tokens.iter();
     let current = iter.next();
