@@ -3,30 +3,35 @@ extern crate regex;
 use regex::Regex;
 use std::str;
 
-/** Enums are more idomatic and make the resulting Vec much easier to understand
- *  I may need more types to make things easier to work with but for now I think
- *  this should suffice
- **/
+// Enums are more idomatic and make the resulting Vec much easier to understand
+// I may need more types to make things easier to work with but for now I think
+// this should suffice
 #[derive(Debug, Clone, PartialEq)]
-pub enum Expression{
-    Ident (String),
-    Operator (char),
-    Number (f64),
-    Word (String),
+pub enum Expression {
+    Ident(String),
+    Operator(char),
+    Number(f64),
+    Word(String),
+    Key(String),
+    Equal,
+    Rparen,
+    Lparen,
+    Rbrace,
+    Lbrace,
     Semicolon,
+    EOF,
 }
 
 #[derive(PartialEq, Debug)]
-enum State{
+enum State {
     Nothing,
     EmString,
     EmName,
-    EmNumber
+    EmNumber,
 }
 
-pub fn tokenize(data:&str)->Vec<Expression>{
-
-    let mut result = vec!();
+pub fn tokenize(data: &str) -> Vec<Expression> {
+    let mut result = vec![];
     let mut tok = String::new();
     let mut current_state = State::Nothing;
 
@@ -40,13 +45,11 @@ pub fn tokenize(data:&str)->Vec<Expression>{
     // somthing of interest i.e. the closing " or whatever, but idk if that's faster or better
     // so this is what I'll stick with for now
     for c in ch {
-
         if !c.is_whitespace() && current_state != State::EmString {
             tok.push(c);
         } else if current_state == State::EmString {
             tok.push(c);
         }
-
 
         if c == '"' {
             if current_state == State::EmString {
@@ -54,81 +57,166 @@ pub fn tokenize(data:&str)->Vec<Expression>{
                 result.push(Expression::Word(tok.clone()));
                 tok = format!("");
                 current_state = State::Nothing;
-            }else {
+            } else {
                 current_state = State::EmString;
                 tok = format!("");
             }
-        } else if valid_symb.is_match(&tok) || c.is_whitespace() && current_state != State::EmString {
-            if !c.is_whitespace() {tok.pop();}
+        } else if valid_symb.is_match(&tok) || c.is_whitespace() && current_state != State::EmString
+        {
+            if !c.is_whitespace() {
+                tok.pop();
+            }
             match current_state {
                 State::EmName => result.push(Expression::Ident(tok.clone())),
-                State::EmNumber => result.push(Expression::Number(tok.clone().parse::<f64>().unwrap())),
+                State::EmNumber => {
+                    result.push(Expression::Number(tok.clone().parse::<f64>().unwrap()))
+                }
                 _ => {}
             }
             match c {
-                '{' => result.push(Expression::Operator(c)),
-                '}' => result.push(Expression::Operator(c)),
-                '(' => result.push(Expression::Operator(c)),
-                ')' => result.push(Expression::Operator(c)),
-                '=' => result.push(Expression::Operator(c)),
+                '{' => result.push(Expression::Lbrace),
+                '}' => result.push(Expression::Rbrace),
+                '(' => result.push(Expression::Lparen),
+                ')' => result.push(Expression::Rparen),
+                '=' => result.push(Expression::Equal),
+                '*' => result.push(Expression::Operator(c)),
+                '+' => result.push(Expression::Operator(c)),
                 ';' => result.push(Expression::Semicolon),
                 _ => {}
             }
             tok = format!("");
             current_state = State::Nothing;
-        } else if valid_chars.is_match(&tok) && current_state != State::EmString{
-            if tok == format!("fn") { //check for all keywords
-                result.push(Expression::Ident(tok.clone()));
+        } else if valid_chars.is_match(&tok) && current_state != State::EmString {
+            if tok == format!("fn") {
+                //check for all keywords
+                result.push(Expression::Key(tok.clone()));
                 current_state = State::Nothing;
                 tok = format!("");
             } else if tok == format!("print") {
-                result.push(Expression::Ident(tok.clone()));
+                result.push(Expression::Key(tok.clone()));
                 current_state = State::Nothing;
                 tok = format!("");
-            } else{
+            } else {
                 current_state = State::EmName;
             }
-        } else if valid_num.is_match(&tok) && current_state != State::EmString{
+        } else if valid_num.is_match(&tok) && current_state != State::EmString {
             current_state = State::EmNumber
         }
-
     }
-
+    result.push(Expression::EOF);
     result //return the result
 }
 
 //compiler stuff
 
+//making the nodes hold the actual values instead of the Expressions might be worth it to make
+//interpreting easier
+#[derive(PartialEq, Debug, Clone)]
+pub enum ExprNode {
+    Operation(Box<Expression>, Box<ExprNode>, Box<ExprNode>), //Operator, Left side, Right side
+    Literal(Box<Expression>),
+    Name(Box<Expression>),
+    Call(Box<Expression>, Box<ExprNode>),
+    Block(Vec<ExprNode>),
+    Illegal,
+    EOF,
+}
 
-
-// pub struct TreeObj {
-//     pub token: Token
-// }
-
-
-
-pub fn tree_gen(tokens: Vec<Token>) -> Vec<(Option<Token>, Option<Token>, Option<Token>)> {
-    let mut ast = vec!();
+pub fn parse(tokens: Vec<Expression>) -> ExprNode {
+    //let root = vec!();
     let mut iter = tokens.iter();
-    for t in iter {
-        match t.name {
-            "keyword" => {
-                let word = &t.value;
-                // let arg = iter.next().unwrap().value.clone();
+    let current = iter.next();
 
-            },
-            "name" => {
+    let node = make_block(&mut iter, current);
 
-            },
-            "symb" => {
+    // while *current.unwrap() != Expression::EOF {
+    //     match current {
+    //         Some(Expression::Key(s)) => {
+    //             if s == "print"  {
 
-            },
+    //             }
+    //         },
+    //         None => {
+    //         }
+    //         _ => {}
+    //     }
+
+    // }
+
+    node
+}
+
+fn make_block(iter: &mut std::slice::Iter<'_, Expression>, cur: Option<&Expression>) -> ExprNode {
+    let mut root = vec![];
+
+    let mut t = cur;
+    while t != None && *t.unwrap() != Expression::EOF && *t.unwrap() != Expression::Rbrace {
+        match t {
+            Some(Expression::Key(s)) => {
+                root.push(key_word(iter, t, &s));
+            }
+            Some(Expression::Ident(_i)) => {
+                root.push(expr(iter, t));
+            }
+            Some(Expression::Lbrace) => {
+                t = iter.next();
+                root.push(make_block(iter, t));
+            }
             _ => {}
         }
+        t = iter.next();
     }
-    
 
+    ExprNode::Block(root)
+}
 
+fn key_word(
+    iter: &mut std::slice::Iter<'_, Expression>,
+    cur: Option<&Expression>,
+    word: &&String,
+) -> ExprNode {
+    let mut node = ExprNode::Illegal;
+    match word.trim() {
+        "print" => node = ExprNode::Call(Box::new(cur.unwrap().clone()), Box::new(expr(iter, cur))),
+        _ => {}
+    }
 
-    ast
+    node
+}
+
+fn expr(iter: &mut std::slice::Iter<'_, Expression>, cur: Option<&Expression>) -> ExprNode {
+    let t = iter.next();
+    let mut node: ExprNode = ExprNode::Illegal;
+    if t == None {
+        node = ExprNode::EOF;
+        return node;
+    }
+    match t {
+        Some(Expression::Equal) => {
+            node = ExprNode::Operation(
+                Box::new(t.unwrap().clone()),
+                Box::new(ExprNode::Name(Box::new(cur.unwrap().clone()))),
+                Box::new(expr(iter, cur)),
+            );
+        }
+        Some(Expression::Operator(_o)) => {
+            node = ExprNode::Operation(
+                Box::new(t.unwrap().clone()),
+                Box::new(node),
+                Box::new(expr(iter, cur)),
+            );
+        }
+        Some(Expression::Word(_s)) => {
+            node = ExprNode::Literal(Box::new(t.unwrap().clone()));
+        }
+        Some(Expression::Number(_n)) => {
+            node = ExprNode::Literal(Box::new(t.unwrap().clone()));
+        }
+        Some(Expression::Ident(_i)) => {
+            node = ExprNode::Name(Box::new(t.unwrap().clone()));
+        }
+        _ => {}
+    }
+
+    node
 }

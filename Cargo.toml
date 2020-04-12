@@ -1,6 +1,6 @@
 [package]
-name = "emerald_script"
-version = "0.1.0"
+name = "gem"
+version = "0.0.1"
 authors = ["AnActualEmerald <kevinliger13@gmail.com>"]
 edition = "2018"
 
