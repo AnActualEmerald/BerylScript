@@ -108,6 +108,9 @@ pub fn tokenize(data: &str) -> Vec<Expression> {
 }
 
 //compiler stuff
+
+//making the nodes hold the actual values instead of the Expressions might be worth it to make
+//interpreting easier
 #[derive(PartialEq, Debug, Clone)]
 pub enum ExprNode {
     Operation(Box<Expression>, Box<ExprNode>, Box<ExprNode>), //Operator, Left side, Right side
@@ -147,13 +150,17 @@ fn make_block(iter: &mut std::slice::Iter<'_, Expression>, cur: Option<&Expressi
     let mut root = vec![];
 
     let mut t = cur;
-    while t != None && *t.unwrap() != Expression::EOF {
+    while t != None && *t.unwrap() != Expression::EOF && *t.unwrap() != Expression::Rbrace {
         match t {
             Some(Expression::Key(s)) => {
                 root.push(key_word(iter, t, &s));
             }
             Some(Expression::Ident(_i)) => {
                 root.push(expr(iter, t));
+            }
+            Some(Expression::Lbrace) => {
+                t = iter.next();
+                root.push(make_block(iter, t));
             }
             _ => {}
         }
