@@ -12,9 +12,9 @@ fn main() {
     let data = load_source_file(&args[1]);
     // println!("File: {}", data);
     let tokens = compiler::tokenize(&data);
-    // println!("{:?}", tokens);
+    println!("{:?}", tokens);
     let ast = compiler::parse(tokens);
-    // println!("{:?}", ast);
+    println!("{:?}", ast);
     interpreter::run(ast);
     if let Ok(el) = now.elapsed() {
         println!("Took {}s", el.as_secs_f32());

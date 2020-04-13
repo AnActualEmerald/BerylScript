@@ -124,6 +124,7 @@ pub enum ExprNode {
     Name(Box<Expression>),
     Call(Box<Expression>, Vec<ExprNode>),
     Block(Vec<ExprNode>),
+    ParenOp(Box<ExprNode>),
     Func(Box<Expression>, Vec<ExprNode>, Box<ExprNode>), //Name, params, function body
     Illegal(Option<Expression>),
     EOF,
@@ -230,7 +231,13 @@ fn expr(
         return node;
     }
     if let Some(Expression::Operator(_o)) = iter.peek() {
-        return expr(iter, t);
+        match cur {
+            Some(Expression::Lparen) => {
+                return expr(iter, cur);
+            }
+            Some(_) => return expr(iter, t),
+            None => {}
+        }
     }
 
     match t {
@@ -238,22 +245,23 @@ fn expr(
             node = ExprNode::Operation(
                 Box::new(t.unwrap().clone()),
                 Box::new(ExprNode::Name(Box::new(cur.unwrap().clone()))),
-                Box::new(expr(iter, cur)),
+                Box::new(expr(iter, t)),
             )
         }
         Some(Expression::Operator(_)) => {
-            node = ExprNode::Operation(
-                Box::new(t.unwrap().clone()),
-                Box::new(make_node(cur.unwrap())),
-                Box::new(expr(iter, cur)),
-            )
+            node = if let Some(Expression::Lparen) = cur {
+                let tmp = ExprNode::ParenOp(Box::new(expr(iter, t)));
+                tmp
+            } else {
+                ExprNode::Operation(
+                    Box::new(t.unwrap().clone()),
+                    Box::new(make_node(cur.unwrap())),
+                    Box::new(expr(iter, t)),
+                )
+            }
         }
-        Some(Expression::Word(_s)) => {
-            node = ExprNode::Literal(Box::new(t.unwrap().clone()));
-        }
-        Some(Expression::Number(_n)) => {
-            node = ExprNode::Literal(Box::new(t.unwrap().clone()));
-        }
+        Some(Expression::Word(_s)) => node = ExprNode::Literal(Box::new(t.unwrap().clone())),
+        Some(Expression::Number(_n)) => node = ExprNode::Literal(Box::new(t.unwrap().clone())),
         Some(Expression::Ident(_i)) => {
             node = if let Some(Expression::Lparen) = iter.peek() {
                 expr(iter, cur)
@@ -262,10 +270,90 @@ fn expr(
             }
         }
         Some(Expression::Lparen) => {
-            node = ExprNode::Call(Box::new(cur.unwrap().clone()), find_params(iter, cur));
+            node = if let Some(Expression::Ident(_)) = cur {
+                ExprNode::Call(Box::new(cur.unwrap().clone()), find_params(iter, cur))
+            //if there was an identifier last before the '(', it should be a function call
+            } else {
+                make_paren_oper(iter, cur) //Otherwise it should be an operation
+            }
+        }
+        Some(Expression::Rparen) => {
+            node = if let Some(Expression::Semicolon) = iter.peek() {
+                make_node(cur.unwrap())
+            } else {
+                let tmp = iter.next();
+                expr(iter, tmp)
+            }
         }
         _ => {}
     }
+
+    node
+}
+
+fn make_paren_oper(
+    iter: &mut std::iter::Peekable<std::slice::Iter<'_, Expression>>,
+    cur: Option<&Expression>,
+) -> ExprNode {
+    let mut last = cur.unwrap();
+    let mut c = iter.next();
+    let mut node = ExprNode::Illegal(None);
+    let mut op = ExprNode::Illegal(None);
+    println!("DEBUG: What is iter.peek(): {:?}", iter.peek());
+    match iter.peek() {
+        Some(Expression::Rparen) => {
+            println!("DEBUG: What is iter.peek(): {:?}", iter.peek());
+            iter.next();
+            println!("DEBUG: What is iter.peek(): {:?}", iter.peek());
+            match iter.peek() {
+                Some(Expression::Operator(_o)) => {
+                    println!("DEBUG: What is iter.peek(): {:?}", iter.peek());
+                    node = if let Some(ex) = iter.next() {
+                        ExprNode::Operation(
+                            Box::new(ex.clone()),
+                            Box::new(make_node(&last)),
+                            Box::new(op.clone()),
+                        )
+                    } else {
+                        op
+                    }
+                }
+                _ => node = op,
+            }
+        }
+        Some(Expression::Lparen) => node = make_paren_oper(iter, Some(&last)),
+        Some(Expression::Operator(_o)) => {
+            println!("DEBUG: iter.peek()={:?}\nc={:?}", iter.peek(), c);
+            op = expr(iter, c);
+            println!("DEBUG: iter.peek()={:?}\nc={:?}", iter.peek(), c);
+            loop {
+                if let Some(ex) = iter.peek() {
+                    match ex {
+                        Expression::Rparen => {
+                            iter.next();
+                        }
+                        Expression::Operator(_) => {
+                            node = ExprNode::Operation(
+                                Box::new(iter.next().unwrap().clone()),
+                                Box::new(make_node(iter.next().unwrap())),
+                                Box::new(op.clone()),
+                            )
+                        }
+                        Expression::Semicolon => break,
+                        _ => break,
+                    }
+                } else {
+                    node = op;
+                    break;
+                }
+            }
+        }
+
+        Some(_) => {}
+        None => {}
+    }
+    last = c.unwrap();
+    c = iter.next();
 
     node
 }
