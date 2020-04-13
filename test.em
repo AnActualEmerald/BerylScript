@@ -1,9 +1,13 @@
 fn main() {
   print "Hello world";
   a = 10;
-  print a;
+  b = 10 + 10 + 10;
+  c = a + b;
+  hello_world(a);
+  print b;
+  print c;
 }
 
-fn hello_world(string saying) {
+fn hello_world(saying) {
     print saying;
 }

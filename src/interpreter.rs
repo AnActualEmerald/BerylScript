@@ -2,14 +2,14 @@ use super::compiler::{ExprNode, Expression};
 use std::collections::HashMap;
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Value {
     Null,
     Float(f64),
     EmString(String),
     // Char(u8),
     Name(String),
-    // Function(),
+    Function(Expression, Vec<Value>, ExprNode),
 }
 
 impl std::fmt::Display for Value {
@@ -20,6 +20,7 @@ impl std::fmt::Display for Value {
             // Value::Char(c) => write!(f, "{}", c),
             Value::Name(n) => write!(f, "{}", n),
             Value::Null => write!(f, "null"),
+            Value::Function(n, p, _) => write!(f, "{:?}({:?})", n, p),
         }
     }
 }
@@ -48,7 +49,7 @@ pub fn run(tree: ExprNode) {
 impl Runtime {
     fn walk_tree(&self, node: &ExprNode, frame: &mut StackFrame) -> Value {
         // println!(
-        //     "Walking tree: \n    Current node: {:?}     Current stack: {:?}",
+        //     "Walking tree: \n    Current node: {:?}\n     Current stack: {:?}",
         //     node, frame.stack
         // );
         match node {
@@ -62,9 +63,10 @@ impl Runtime {
                 return Value::Null;
             }
             ExprNode::Operation(o, l, r) => self.do_operation(&**o, &**l, &**r, frame),
-            ExprNode::Call(ex, n) => self.do_call(&**ex, &**n, frame),
+            ExprNode::Call(ex, n) => self.do_call(&**ex, &*n, frame),
             ExprNode::Literal(l) => self.make_literal(&**l, frame),
             ExprNode::Name(n) => self.make_name(&**n, frame),
+            ExprNode::Func(n, p, b) => self.def_func(n, p, b, frame),
             _ => Value::Null,
         }
         // Value::Null
@@ -74,6 +76,26 @@ impl Runtime {
         if let Expression::Ident(i) = name {
             return Value::Name(i.clone().to_owned());
         }
+        Value::Null
+    }
+
+    fn def_func(
+        &self,
+        name: &Expression,
+        params: &Vec<ExprNode>,
+        body: &ExprNode,
+        frame: &mut StackFrame,
+    ) -> Value {
+        if let Expression::Ident(n) = name {
+            let mut args = vec![];
+            for e in params.iter() {
+                args.push(self.walk_tree(e, frame));
+            }
+            let f = Value::Function(name.clone(), args, body.clone());
+            frame.set_var(n.to_string(), f.clone());
+            return f;
+        }
+
         Value::Null
     }
 
@@ -101,6 +123,44 @@ impl Runtime {
                     return Value::Null;
                 }
             }
+            Expression::Operator(o) => {
+                let l_p = self.walk_tree(&left, frame);
+                let r_p = self.walk_tree(&right, frame);
+
+                let f = match l_p {
+                    Value::Float(f) => f,
+                    Value::Name(n) => {
+                        if let Value::Float(f) = frame.get_var(&n) {
+                            *f
+                        } else {
+                            0.0 as f64
+                        }
+                    }
+                    _ => 0.0 as f64,
+                };
+
+                let r = match r_p {
+                    Value::Float(f) => f,
+                    Value::Name(n) => {
+                        if let Value::Float(f) = frame.get_var(&n) {
+                            *f
+                        } else {
+                            0.0 as f64
+                        }
+                    }
+                    _ => 0.0 as f64,
+                };
+
+                if *o == '+' {
+                    return Value::Float(f + r);
+                } else if *o == '-' {
+                    return Value::Float(f - r);
+                } else if *o == '*' {
+                    return Value::Float(f * r);
+                } else if *o == '/' {
+                    return Value::Float(f / r);
+                }
+            }
             _ => {}
         }
 
@@ -110,12 +170,25 @@ impl Runtime {
     fn keyword(&self, name: &Expression, value: &ExprNode, frame: &mut StackFrame) -> Value {
         if let Expression::Key(s) = name {
             if s == "print" {
-                match self.walk_tree(&value, frame) {
-                    Value::EmString(r) => println!("{}", r),
-                    // Value::Char(c) => println!("{}", c),
-                    Value::Float(i) => println!("{}", i),
-                    Value::Name(n) => println!("{}", frame.get_var(n)),
-                    Value::Null => println!("null"),
+                // println!("DEBUG: value={:?}", value);
+                match value {
+                    ExprNode::Call(n, args) => {
+                        println!("{}", self.do_call(n, args, frame));
+                    }
+                    _ => {
+                        let tmp = self.walk_tree(&value, frame);
+                        // println!("DEBUG: tmp={:?}", tmp);
+                        match tmp {
+                            Value::EmString(r) => println!("{}", r),
+                            // Value::Char(c) => println!("{}", c),
+                            Value::Float(i) => println!("{}", i),
+                            Value::Name(n) => println!("{}", frame.get_var(&n)),
+                            Value::Null => println!("null"),
+                            Value::Function(_, _, _) => {
+                                println!("{}", self.walk_tree(&value, frame))
+                            } // _ => {}
+                        }
+                    }
                 }
             }
         }
@@ -123,16 +196,51 @@ impl Runtime {
         Value::Null
     }
 
-    fn do_call(&self, name: &Expression, param: &ExprNode, frame: &mut StackFrame) -> Value {
+    fn do_call(&self, name: &Expression, param: &Vec<ExprNode>, frame: &mut StackFrame) -> Value {
         if let Expression::Key(_) = name {
-            return self.keyword(name, param, frame);
+            return self.keyword(name, &param[0], frame);
         }
 
-        if let Expression::Ident(f) = name {
-            let p = self.walk_tree(&param, frame);
-            frame.set_var(format!("{}_var", f), p);
-            // return self.walk_tree(&frame.stack[f], frame);
-            return Value::Null;
+        if let Expression::Ident(n) = name {
+            let f: Value;
+            {
+                f = frame.get_var_copy(n);
+            }
+            match &f {
+                Value::Function(_, p, b) => {
+                    if p.len() != param.len() {
+                        panic!(
+                            "Expected {} arguments for {}, got {}",
+                            p.len(),
+                            n,
+                            param.len()
+                        );
+                    } else {
+                        let mut i = 0;
+                        for e in param.iter() {
+                            if let Value::Name(arg) = &p[i] {
+                                let val = self.walk_tree(&e, frame);
+                                match val {
+                                    Value::Name(n) => {
+                                        let tmp = frame.get_var(&n);
+                                        frame.set_var(arg.to_string(), tmp.clone());
+                                    }
+                                    _ => frame.set_var(arg.to_string(), val),
+                                }
+                            }
+                            i = i + 1;
+                        }
+                        let ret = self.walk_tree(&b, frame);
+                        p.iter().for_each(|e| match e {
+                            Value::Name(n) => frame.free_var(n),
+                            _ => {}
+                        });
+
+                        return ret;
+                    }
+                }
+                _ => panic!("Expected function, found {}", f),
+            }
         }
 
         Value::Null
@@ -144,11 +252,25 @@ impl StackFrame {
         self.stack.insert(name, v);
     }
 
-    fn get_var(&self, name: String) -> &Value {
-        if self.stack.contains_key(&name) {
-            &self.stack[&name]
+    fn get_var(&self, name: &String) -> &Value {
+        if self.stack.contains_key(name) {
+            &self.stack[name]
         } else {
             &Value::Null
+        }
+    }
+
+    fn get_var_copy(&self, name: &String) -> Value {
+        if self.stack.contains_key(name) {
+            self.stack[name].clone()
+        } else {
+            Value::Null
+        }
+    }
+
+    fn free_var(&mut self, name: &String) {
+        if self.stack.contains_key(name) {
+            self.stack.remove(name);
         }
     }
 }
