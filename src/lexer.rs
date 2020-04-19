@@ -30,6 +30,7 @@ enum State {
     EmString,
     EmName,
     EmNumber,
+    Comment,
 }
 
 pub fn tokenize(data: &str) -> Vec<Expression> {
@@ -41,13 +42,21 @@ pub fn tokenize(data: &str) -> Vec<Expression> {
 
     let valid_chars = Regex::new(r"\D+[[:word:]]*").unwrap();
     let valid_num = Regex::new(r"\d*").unwrap();
-    let valid_symb = Regex::new(r"[\{\}\(\)=;\*\+\-/]").unwrap();
+    let valid_symb = Regex::new(r"[\{\}\(\)=;\*\+\-/#]").unwrap();
 
     // This whole thing could use a mutable iterator to check over the data until it finds
     // somthing of interest i.e. the closing " or whatever, but idk if that's faster or better
     // so this is what I'll stick with for now
     for c in ch {
-        if !c.is_whitespace() && current_state != State::EmString {
+        if current_state == State::Comment {
+            if c == '\n' {
+                current_state = State::Nothing;
+                tok = format!("");
+                continue;
+            } else {
+                continue;
+            }
+        } else if !c.is_whitespace() && current_state != State::EmString {
             tok.push(c);
         } else if current_state == State::EmString {
             tok.push(c);
@@ -86,6 +95,10 @@ pub fn tokenize(data: &str) -> Vec<Expression> {
                 '-' => result.push(Expression::Operator(c)),
                 '/' => result.push(Expression::Operator(c)),
                 ';' => result.push(Expression::Semicolon),
+                '#' => {
+                    current_state = State::Comment;
+                    continue;
+                }
                 _ => {}
             }
             tok = format!("");
