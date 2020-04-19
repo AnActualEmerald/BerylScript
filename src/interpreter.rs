@@ -1,4 +1,5 @@
-use super::compiler::{ExprNode, Expression};
+use super::lexer::Expression;
+use super::parser::ExprNode;
 use std::collections::HashMap;
 use std::fmt;
 
@@ -44,6 +45,7 @@ pub fn run(tree: ExprNode) {
         stack: HashMap::new(),
     };
     r.walk_tree(&tree, &mut glob_frame);
+    // println!("{:?}", glob_frame.stack);
 }
 
 impl Runtime {
@@ -57,10 +59,16 @@ impl Runtime {
                 // let mut n_frame = StackFrame {
                 //     stack: HashMap::new(),
                 // };
-                for e in v.iter() {
-                    self.walk_tree(&e, frame);
-                }
-                return Value::Null;
+                let mut ret = Value::Null;
+                v.iter().for_each(|e| match e {
+                    ExprNode::Call(name, args) => {
+                        ret = self.do_call(name, args, frame);
+                    }
+                    _ => {
+                        self.walk_tree(e, frame);
+                    }
+                });
+                return ret;
             }
             ExprNode::Operation(o, l, r) => self.do_operation(&**o, &**l, &**r, frame),
             ExprNode::Call(ex, n) => self.do_call(&**ex, &*n, frame),
@@ -191,6 +199,15 @@ impl Runtime {
                         }
                     }
                 }
+            } else if s == "return" {
+                match value {
+                    ExprNode::Call(n, args) => {
+                        return self.do_call(n, args, frame);
+                    }
+                    _ => {
+                        return self.walk_tree(&value, frame);
+                    }
+                }
             }
         }
 
@@ -223,8 +240,9 @@ impl Runtime {
                                 let val = self.walk_tree(&e, frame);
                                 match val {
                                     Value::Name(n) => {
-                                        let tmp = frame.get_var(&n);
-                                        frame.set_var(arg.to_string(), tmp.clone());
+                                        let tmp = frame.get_var(&n).clone();
+                                        frame.set_var(arg.to_string(), tmp);
+                                        //I'd really like to not have to copy here
                                     }
                                     _ => frame.set_var(arg.to_string(), val),
                                 }

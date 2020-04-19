@@ -1,5 +1,6 @@
-mod compiler;
 mod interpreter;
+mod lexer;
+mod parser;
 
 use std::env;
 use std::fs;
@@ -11,9 +12,9 @@ fn main() {
     let now = SystemTime::now();
     let data = load_source_file(&args[1]);
     // println!("File: {}", data);
-    let tokens = compiler::tokenize(&data);
+    let tokens = lexer::tokenize(&data);
     // println!("{:?}", tokens);
-    let ast = compiler::parse(tokens);
+    let ast = parser::parse(tokens);
     // println!("{:?}", ast);
     interpreter::run(ast);
     if let Ok(el) = now.elapsed() {
