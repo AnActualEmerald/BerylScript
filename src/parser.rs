@@ -1,119 +1,6 @@
-extern crate regex;
-
-use regex::Regex;
+use super::lexer::*;
 use std::iter::Peekable;
 use std::slice::Iter;
-use std::str;
-
-// Enums are more idomatic and make the resulting Vec much easier to understand
-// I may need more types to make things easier to work with but for now I think
-// this should suffice
-#[derive(Debug, Clone, PartialEq)]
-pub enum Expression {
-    Ident(String),
-    Number(f64),
-    Word(String),
-    Key(String),
-    Operator(char),
-    Equal,
-    Rparen,
-    Lparen,
-    Rbrace,
-    Lbrace,
-    Semicolon,
-    EOF,
-}
-
-#[derive(PartialEq, Debug)]
-enum State {
-    Nothing,
-    EmString,
-    EmName,
-    EmNumber,
-}
-
-pub fn tokenize(data: &str) -> Vec<Expression> {
-    let mut result = vec![];
-    let mut tok = String::new();
-    let mut current_state = State::Nothing;
-
-    let ch = data.chars().clone();
-
-    let valid_chars = Regex::new(r"\D+[[:word:]]*").unwrap();
-    let valid_num = Regex::new(r"\d*").unwrap();
-    let valid_symb = Regex::new(r"[\{\}\(\)=;\*\+\-/]").unwrap();
-
-    // This whole thing could use a mutable iterator to check over the data until it finds
-    // somthing of interest i.e. the closing " or whatever, but idk if that's faster or better
-    // so this is what I'll stick with for now
-    for c in ch {
-        if !c.is_whitespace() && current_state != State::EmString {
-            tok.push(c);
-        } else if current_state == State::EmString {
-            tok.push(c);
-        }
-
-        if c == '"' {
-            if current_state == State::EmString {
-                tok.pop();
-                result.push(Expression::Word(tok.clone()));
-                tok = format!("");
-                current_state = State::Nothing;
-            } else {
-                current_state = State::EmString;
-                tok = format!("");
-            }
-        } else if valid_symb.is_match(&tok) || c.is_whitespace() && current_state != State::EmString
-        {
-            if !c.is_whitespace() {
-                tok.pop();
-            }
-            match current_state {
-                State::EmName => result.push(Expression::Ident(tok.clone())),
-                State::EmNumber => {
-                    result.push(Expression::Number(tok.clone().parse::<f64>().unwrap()))
-                }
-                _ => {}
-            }
-            match c {
-                '{' => result.push(Expression::Lbrace),
-                '}' => result.push(Expression::Rbrace),
-                '(' => result.push(Expression::Lparen),
-                ')' => result.push(Expression::Rparen),
-                '=' => result.push(Expression::Equal),
-                '*' => result.push(Expression::Operator(c)),
-                '+' => result.push(Expression::Operator(c)),
-                '-' => result.push(Expression::Operator(c)),
-                '/' => result.push(Expression::Operator(c)),
-                ';' => result.push(Expression::Semicolon),
-                _ => {}
-            }
-            tok = format!("");
-            current_state = State::Nothing;
-        } else if valid_chars.is_match(&tok) && current_state != State::EmString {
-            if tok == format!("fn") {
-                //check for all keywords
-                result.push(Expression::Key(tok.clone()));
-                current_state = State::Nothing;
-                tok = format!("");
-            } else if tok == format!("print") {
-                result.push(Expression::Key(tok.clone()));
-                current_state = State::Nothing;
-                tok = format!("");
-            } else {
-                current_state = State::EmName;
-            }
-        } else if valid_num.is_match(&tok) && current_state != State::EmString {
-            current_state = State::EmNumber
-        }
-    }
-    result.push(Expression::Ident("main".to_owned()));
-    result.push(Expression::Lparen);
-    result.push(Expression::Rparen);
-    result.push(Expression::Semicolon);
-    result.push(Expression::EOF);
-    result //return the result
-}
 
 //compiler stuff
 
@@ -124,7 +11,7 @@ pub enum ExprNode {
     Operation(Box<Expression>, Box<ExprNode>, Box<ExprNode>), //Operator, Left side, Right side
     Literal(Box<Expression>),
     Name(Box<Expression>),
-    Call(Box<Expression>, Vec<ExprNode>),
+    Call(Box<Expression>, Vec<ExprNode>), //name, args
     Block(Vec<ExprNode>),
     ParenOp(Box<ExprNode>),
     Func(Box<Expression>, Vec<ExprNode>, Box<ExprNode>), //Name, params, function body
@@ -143,10 +30,7 @@ pub fn parse(tokens: Vec<Expression>) -> ExprNode {
     node
 }
 
-fn make_block(
-    iter: &mut std::iter::Peekable<std::slice::Iter<'_, Expression>>,
-    cur: Option<&Expression>,
-) -> ExprNode {
+fn make_block(iter: &mut Peekable<Iter<'_, Expression>>, cur: Option<&Expression>) -> ExprNode {
     let mut root = vec![];
 
     let mut t = cur;
@@ -171,7 +55,7 @@ fn make_block(
 }
 
 fn key_word(
-    iter: &mut std::iter::Peekable<std::slice::Iter<'_, Expression>>,
+    iter: &mut Peekable<Iter<'_, Expression>>,
     cur: Option<&Expression>,
     word: &&String,
 ) -> ExprNode {
@@ -179,16 +63,14 @@ fn key_word(
     match word.trim() {
         "print" => node = ExprNode::Call(Box::new(cur.unwrap().clone()), vec![expr(iter, cur)]),
         "fn" => node = def_func(iter, cur),
+        "return" => node = ExprNode::Call(Box::new(cur.unwrap().clone()), vec![expr(iter, cur)]),
         _ => {}
     }
 
     node
 }
 
-fn def_func(
-    iter: &mut std::iter::Peekable<std::slice::Iter<'_, Expression>>,
-    _cur: Option<&Expression>,
-) -> ExprNode {
+fn def_func(iter: &mut Peekable<Iter<'_, Expression>>, _cur: Option<&Expression>) -> ExprNode {
     let mut name: Expression = Expression::Ident("broken".to_owned());
     let mut params = vec![];
     let mut body: ExprNode = ExprNode::Illegal(None);
@@ -223,13 +105,10 @@ fn def_func(
     ExprNode::Func(Box::new(name), params, Box::new(body))
 }
 
-fn expr(
-    iter: &mut std::iter::Peekable<std::slice::Iter<'_, Expression>>,
-    cur: Option<&Expression>,
-) -> ExprNode {
+fn expr(iter: &mut Peekable<Iter<'_, Expression>>, cur: Option<&Expression>) -> ExprNode {
     let t = iter.next();
     let mut node: ExprNode = ExprNode::Illegal(None);
-    if t == None {
+    if t.is_none() {
         node = ExprNode::EOF;
         return node;
     }
@@ -242,7 +121,6 @@ fn expr(
             None => {}
         }
     }
-
     match t {
         Some(Expression::Equal) => {
             node = ExprNode::Operation(
@@ -267,12 +145,14 @@ fn expr(
         Some(Expression::Number(_n)) => node = ExprNode::Literal(Box::new(t.unwrap().clone())),
         Some(Expression::Ident(_i)) => {
             node = if let Some(Expression::Lparen) = iter.peek() {
-                expr(iter, cur)
+                // iter.next();
+                expr(iter, t)
             } else {
                 ExprNode::Name(Box::new(t.unwrap().clone()))
             }
         }
         Some(Expression::Lparen) => {
+            // println!("This is what cur =  {:?}", cur);
             node = if let Some(Expression::Ident(_)) = cur {
                 ExprNode::Call(Box::new(cur.unwrap().clone()), find_params(iter, cur))
             //if there was an identifier last before the '(', it should be a function call
@@ -314,7 +194,7 @@ fn make_node(exp: &Expression) -> ExprNode {
 }
 
 fn find_params(
-    peekable: &mut std::iter::Peekable<std::slice::Iter<'_, Expression>>,
+    peekable: &mut Peekable<Iter<'_, Expression>>,
     cur: Option<&Expression>,
 ) -> Vec<ExprNode> {
     let mut params = vec![];
