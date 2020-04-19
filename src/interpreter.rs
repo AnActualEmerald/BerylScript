@@ -67,6 +67,7 @@ impl Runtime {
             ExprNode::Literal(l) => self.make_literal(&**l, frame),
             ExprNode::Name(n) => self.make_name(&**n, frame),
             ExprNode::Func(n, p, b) => self.def_func(n, p, b, frame),
+            ExprNode::Statement(e) => self.walk_tree(&**e, frame),
             _ => Value::Null,
         }
         // Value::Null

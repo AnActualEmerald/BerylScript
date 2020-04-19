@@ -1,6 +1,8 @@
 extern crate regex;
 
 use regex::Regex;
+use std::iter::Peekable;
+use std::slice::Iter;
 use std::str;
 
 // Enums are more idomatic and make the resulting Vec much easier to understand
@@ -39,7 +41,7 @@ pub fn tokenize(data: &str) -> Vec<Expression> {
 
     let valid_chars = Regex::new(r"\D+[[:word:]]*").unwrap();
     let valid_num = Regex::new(r"\d*").unwrap();
-    let valid_symb = Regex::new(r"[\{\}\(\)=;\*\+\-\\]").unwrap();
+    let valid_symb = Regex::new(r"[\{\}\(\)=;\*\+\-/]").unwrap();
 
     // This whole thing could use a mutable iterator to check over the data until it finds
     // somthing of interest i.e. the closing " or whatever, but idk if that's faster or better
@@ -126,6 +128,7 @@ pub enum ExprNode {
     Block(Vec<ExprNode>),
     ParenOp(Box<ExprNode>),
     Func(Box<Expression>, Vec<ExprNode>, Box<ExprNode>), //Name, params, function body
+    Statement(Box<ExprNode>),
     Illegal(Option<Expression>),
     EOF,
 }
@@ -274,7 +277,8 @@ fn expr(
                 ExprNode::Call(Box::new(cur.unwrap().clone()), find_params(iter, cur))
             //if there was an identifier last before the '(', it should be a function call
             } else {
-                make_paren_oper(iter, cur) //Otherwise it should be an operation
+                //Otherwise it should be a statement
+                ExprNode::Statement(Box::new(expr(iter, cur)))
             }
         }
         Some(Expression::Rparen) => {
@@ -287,73 +291,6 @@ fn expr(
         }
         _ => {}
     }
-
-    node
-}
-
-fn make_paren_oper(
-    iter: &mut std::iter::Peekable<std::slice::Iter<'_, Expression>>,
-    cur: Option<&Expression>,
-) -> ExprNode {
-    let mut last = cur.unwrap();
-    let mut c = iter.next();
-    let mut node = ExprNode::Illegal(None);
-    let mut op = ExprNode::Illegal(None);
-    println!("DEBUG: What is iter.peek(): {:?}", iter.peek());
-    match iter.peek() {
-        Some(Expression::Rparen) => {
-            println!("DEBUG: What is iter.peek(): {:?}", iter.peek());
-            iter.next();
-            println!("DEBUG: What is iter.peek(): {:?}", iter.peek());
-            match iter.peek() {
-                Some(Expression::Operator(_o)) => {
-                    println!("DEBUG: What is iter.peek(): {:?}", iter.peek());
-                    node = if let Some(ex) = iter.next() {
-                        ExprNode::Operation(
-                            Box::new(ex.clone()),
-                            Box::new(make_node(&last)),
-                            Box::new(op.clone()),
-                        )
-                    } else {
-                        op
-                    }
-                }
-                _ => node = op,
-            }
-        }
-        Some(Expression::Lparen) => node = make_paren_oper(iter, Some(&last)),
-        Some(Expression::Operator(_o)) => {
-            println!("DEBUG: iter.peek()={:?}\nc={:?}", iter.peek(), c);
-            op = expr(iter, c);
-            println!("DEBUG: iter.peek()={:?}\nc={:?}", iter.peek(), c);
-            loop {
-                if let Some(ex) = iter.peek() {
-                    match ex {
-                        Expression::Rparen => {
-                            iter.next();
-                        }
-                        Expression::Operator(_) => {
-                            node = ExprNode::Operation(
-                                Box::new(iter.next().unwrap().clone()),
-                                Box::new(make_node(iter.next().unwrap())),
-                                Box::new(op.clone()),
-                            )
-                        }
-                        Expression::Semicolon => break,
-                        _ => break,
-                    }
-                } else {
-                    node = op;
-                    break;
-                }
-            }
-        }
-
-        Some(_) => {}
-        None => {}
-    }
-    last = c.unwrap();
-    c = iter.next();
 
     node
 }
