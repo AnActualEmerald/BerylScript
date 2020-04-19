@@ -16,6 +16,7 @@ pub enum ExprNode {
     ParenOp(Box<ExprNode>),
     Func(Box<Expression>, Vec<ExprNode>, Box<ExprNode>), //Name, params, function body
     Statement(Box<ExprNode>),
+    ReturnVal(Box<ExprNode>),
     Illegal(Option<Expression>),
     EOF,
 }
@@ -63,7 +64,7 @@ fn key_word(
     match word.trim() {
         "print" => node = ExprNode::Call(Box::new(cur.unwrap().clone()), vec![expr(iter, cur)]),
         "fn" => node = def_func(iter, cur),
-        "return" => node = ExprNode::Call(Box::new(cur.unwrap().clone()), vec![expr(iter, cur)]),
+        "return" => node = ExprNode::ReturnVal(Box::new(expr(iter, cur))),
         _ => {}
     }
 

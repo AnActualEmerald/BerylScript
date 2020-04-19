@@ -32,13 +32,15 @@ struct StackFrame {
 
 struct Runtime {
     // tree: ExprNode,
-// stack: Vec<StackFrame>,
+    // stack: Vec<StackFrame>,
+    returning: bool,
 }
 
 pub fn run(tree: ExprNode) {
-    let r = Runtime {
+    let mut r = Runtime {
         // tree: tree.clone(),
         // stack: vec![],
+        returning: false,
     };
     // r.find_global_vars();
     let mut glob_frame = StackFrame {
@@ -49,35 +51,44 @@ pub fn run(tree: ExprNode) {
 }
 
 impl Runtime {
-    fn walk_tree(&self, node: &ExprNode, frame: &mut StackFrame) -> Value {
+    fn walk_tree(&mut self, node: &ExprNode, frame: &mut StackFrame) -> Value {
         // println!(
         //     "Walking tree: \n    Current node: {:?}\n     Current stack: {:?}",
         //     node, frame.stack
         // );
+        let res: Value;
         match node {
             ExprNode::Block(v) => {
                 // let mut n_frame = StackFrame {
                 //     stack: HashMap::new(),
                 // };
                 let mut ret = Value::Null;
-                v.iter().for_each(|e| match e {
-                    ExprNode::Call(name, args) => {
-                        ret = self.do_call(name, args, frame);
+                for e in v.iter() {
+                    match e {
+                        ExprNode::ReturnVal(v) => {
+                            ret = self.walk_tree(v, frame);
+                            break;
+                        }
+                        _ => {
+                            self.walk_tree(e, frame);
+                        }
                     }
-                    _ => {
-                        self.walk_tree(e, frame);
+                    if self.returning {
+                        break;
                     }
-                });
+                }
                 return ret;
             }
-            ExprNode::Operation(o, l, r) => self.do_operation(&**o, &**l, &**r, frame),
-            ExprNode::Call(ex, n) => self.do_call(&**ex, &*n, frame),
-            ExprNode::Literal(l) => self.make_literal(&**l, frame),
-            ExprNode::Name(n) => self.make_name(&**n, frame),
-            ExprNode::Func(n, p, b) => self.def_func(n, p, b, frame),
-            ExprNode::Statement(e) => self.walk_tree(&**e, frame),
-            _ => Value::Null,
+            ExprNode::Operation(o, l, r) => res = self.do_operation(&**o, &**l, &**r, frame),
+            ExprNode::Call(ex, n) => res = self.do_call(&**ex, &*n, frame),
+            ExprNode::Literal(l) => res = self.make_literal(&**l, frame),
+            ExprNode::Name(n) => res = self.make_name(&**n, frame),
+            ExprNode::Func(n, p, b) => res = self.def_func(n, p, b, frame),
+            ExprNode::Statement(e) => res = self.walk_tree(&**e, frame),
+            _ => res = Value::Null,
         }
+        self.returning = false;
+        return res;
         // Value::Null
     }
 
@@ -89,7 +100,7 @@ impl Runtime {
     }
 
     fn def_func(
-        &self,
+        &mut self,
         name: &Expression,
         params: &Vec<ExprNode>,
         body: &ExprNode,
@@ -108,7 +119,7 @@ impl Runtime {
         Value::Null
     }
 
-    fn make_literal(&self, lit: &Expression, _frame: &mut StackFrame) -> Value {
+    fn make_literal(&mut self, lit: &Expression, _frame: &mut StackFrame) -> Value {
         match lit {
             Expression::Word(w) => return Value::EmString(String::from(w)),
             Expression::Number(n) => return Value::Float(*n),
@@ -118,7 +129,7 @@ impl Runtime {
     }
 
     fn do_operation(
-        &self,
+        &mut self,
         opr: &Expression,
         left: &ExprNode,
         right: &ExprNode,
@@ -176,7 +187,7 @@ impl Runtime {
         Value::Null
     }
 
-    fn keyword(&self, name: &Expression, value: &ExprNode, frame: &mut StackFrame) -> Value {
+    fn keyword(&mut self, name: &Expression, value: &ExprNode, frame: &mut StackFrame) -> Value {
         if let Expression::Key(s) = name {
             if s == "print" {
                 // println!("DEBUG: value={:?}", value);
@@ -200,6 +211,7 @@ impl Runtime {
                     }
                 }
             } else if s == "return" {
+                self.returning = true;
                 match value {
                     ExprNode::Call(n, args) => {
                         return self.do_call(n, args, frame);
@@ -214,7 +226,12 @@ impl Runtime {
         Value::Null
     }
 
-    fn do_call(&self, name: &Expression, param: &Vec<ExprNode>, frame: &mut StackFrame) -> Value {
+    fn do_call(
+        &mut self,
+        name: &Expression,
+        param: &Vec<ExprNode>,
+        frame: &mut StackFrame,
+    ) -> Value {
         if let Expression::Key(_) = name {
             return self.keyword(name, &param[0], frame);
         }
