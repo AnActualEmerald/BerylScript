@@ -1,4 +1,4 @@
-use crate::gem::lexer::{tokenize, Expression};
+use crate::lexer::{tokenize, Expression};
 
 #[test]
 fn token_generation() {

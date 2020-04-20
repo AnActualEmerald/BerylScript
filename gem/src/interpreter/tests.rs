@@ -1,6 +1,6 @@
-use crate::gem::interpreter::*;
-use crate::gem::lexer::Expression;
-use crate::gem::parser::ExprNode;
+use crate::interpreter::*;
+use crate::lexer::Expression;
+use crate::parser::ExprNode;
 use std::collections::HashMap;
 
 #[test]

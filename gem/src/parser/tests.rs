@@ -1,5 +1,5 @@
-use crate::gem::lexer::Expression;
-use crate::gem::parser::*;
+use crate::lexer::Expression;
+use crate::parser::*;
 
 #[test]
 fn ast_generation() {
