@@ -1,8 +1,9 @@
 extern crate regex;
 
+#[cfg(test)]
+mod tests;
+
 use regex::Regex;
-// use std::iter::Peekable;
-// use std::slice::Iter;
 use std::str;
 
 // Enums are more idomatic and make the resulting Vec much easier to understand

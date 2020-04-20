@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use super::lexer::*;
 use std::iter::Peekable;
 use std::slice::Iter;
