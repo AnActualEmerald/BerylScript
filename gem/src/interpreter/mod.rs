@@ -1,9 +1,12 @@
+#[cfg(test)]
+mod tests;
+
 use super::lexer::Expression;
 use super::parser::ExprNode;
 use std::collections::HashMap;
 use std::fmt;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 enum Value {
     Null,
     Float(f64),
