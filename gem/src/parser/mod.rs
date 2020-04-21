@@ -27,32 +27,29 @@ pub enum ExprNode {
 pub fn parse(tokens: Vec<Expression>) -> ExprNode {
     //let root = vec!();
     let mut iter = tokens.iter().peekable();
-    let current = iter.next();
 
-    make_block(&mut iter, current)
+    make_block(&mut iter)
 
     // node
 }
 
-fn make_block(iter: &mut Peekable<Iter<'_, Expression>>, cur: Option<&Expression>) -> ExprNode {
+fn make_block(iter: &mut Peekable<Iter<'_, Expression>>) -> ExprNode {
     let mut root = vec![];
 
-    let mut t = cur;
-    while t != None && *t.unwrap() != Expression::EOF && *t.unwrap() != Expression::Rbrace {
+    while let Some(t) = iter.next() {
         match t {
-            Some(Expression::Key(s)) => {
-                root.push(key_word(iter, t, &s));
+            Expression::EOF | Expression::Rbrace => break,
+            Expression::Key(s) => {
+                root.push(key_word(iter, Some(t), &s));
             }
-            Some(Expression::Ident(_i)) => {
-                root.push(expr(iter, t));
+            Expression::Ident(_) => {
+                root.push(expr(iter, Some(t)));
             }
-            Some(Expression::Lbrace) => {
-                t = iter.next();
-                root.push(make_block(iter, t));
+            Expression::Lbrace => {
+                root.push(make_block(iter));
             }
             _ => {}
         }
-        t = iter.next();
     }
 
     ExprNode::Block(root)
@@ -85,21 +82,19 @@ fn def_func(iter: &mut Peekable<Iter<'_, Expression>>, _cur: Option<&Expression>
             _ => return ExprNode::Illegal(Some(n.clone())),
         }
     }
-    loop {
-        if let Some(p) = iter.next() {
-            match p {
-                Expression::Lparen => continue,
-                Expression::Rparen => break,
-                Expression::Ident(_) => params.push(ExprNode::Name(Box::new(p.clone()))),
-                _ => {}
-            }
+
+    while let Some(p) = iter.next() {
+        match p {
+            Expression::Lparen => continue,
+            Expression::Rparen => break,
+            Expression::Ident(_) => params.push(ExprNode::Name(Box::new(p.clone()))),
+            _ => {}
         }
     }
 
     if let Some(b) = iter.next() {
         if let Expression::Lbrace = b {
-            let c = iter.next();
-            body = make_block(iter, c);
+            body = make_block(iter);
         }
     }
 
@@ -109,11 +104,8 @@ fn def_func(iter: &mut Peekable<Iter<'_, Expression>>, _cur: Option<&Expression>
 fn expr(iter: &mut Peekable<Iter<'_, Expression>>, cur: Option<&Expression>) -> ExprNode {
     let t = iter.next();
     let mut node: ExprNode = ExprNode::Illegal(None);
-    if t.is_none() {
-        node = ExprNode::EOF;
-        return node;
-    }
-    if let Some(Expression::Operator(_o)) = iter.peek() {
+
+    if let Some(Expression::Operator(_)) = iter.peek() {
         match cur {
             Some(Expression::Lparen) => {
                 return expr(iter, cur);
@@ -122,50 +114,54 @@ fn expr(iter: &mut Peekable<Iter<'_, Expression>>, cur: Option<&Expression>) -> 
             None => {}
         }
     }
-    match t {
-        Some(Expression::Equal) => {
-            node = ExprNode::Operation(
-                Box::new(t.unwrap().clone()),
-                Box::new(ExprNode::Name(Box::new(cur.unwrap().clone()))),
-                Box::new(expr(iter, t)),
-            )
-        }
-        Some(Expression::Operator(_)) => {
-            node = ExprNode::Operation(
-                Box::new(t.unwrap().clone()),
-                Box::new(make_node(cur.unwrap())),
-                Box::new(expr(iter, t)),
-            )
-        }
-        Some(Expression::Word(_s)) => node = ExprNode::Literal(Box::new(t.unwrap().clone())),
-        Some(Expression::Number(_n)) => node = ExprNode::Literal(Box::new(t.unwrap().clone())),
-        Some(Expression::Ident(_i)) => {
-            node = if let Some(Expression::Lparen) = iter.peek() {
-                // iter.next();
-                expr(iter, t)
-            } else {
-                ExprNode::Name(Box::new(t.unwrap().clone()))
+    if let Some(exp) = t {
+        match exp {
+            Expression::Equal => {
+                node = ExprNode::Operation(
+                    Box::new(t.unwrap().clone()),
+                    Box::new(ExprNode::Name(Box::new(cur.unwrap().clone()))),
+                    Box::new(expr(iter, t)),
+                )
             }
-        }
-        Some(Expression::Lparen) => {
-            // println!("This is what cur =  {:?}", cur);
-            node = if let Some(Expression::Ident(_)) = cur {
-                ExprNode::Call(Box::new(cur.unwrap().clone()), find_params(iter, cur))
-            //if there was an identifier last before the '(', it should be a function call
-            } else {
-                //Otherwise it should be a statement
-                ExprNode::Statement(Box::new(expr(iter, cur)))
+            Expression::Operator(_) => {
+                node = ExprNode::Operation(
+                    Box::new(t.unwrap().clone()),
+                    Box::new(make_node(cur.unwrap())),
+                    Box::new(expr(iter, t)),
+                )
             }
-        }
-        Some(Expression::Rparen) => {
-            node = if let Some(Expression::Semicolon) = iter.peek() {
-                make_node(cur.unwrap())
-            } else {
-                let tmp = iter.next();
-                expr(iter, tmp)
+            Expression::Word(_s) => node = ExprNode::Literal(Box::new(t.unwrap().clone())),
+            Expression::Number(_n) => node = ExprNode::Literal(Box::new(t.unwrap().clone())),
+            Expression::Ident(_i) => {
+                node = if let Some(Expression::Lparen) = iter.peek() {
+                    // iter.next();
+                    expr(iter, t)
+                } else {
+                    ExprNode::Name(Box::new(t.unwrap().clone()))
+                }
             }
+            Expression::Lparen => {
+                // println!("This is what cur =  {:?}", cur);
+                node = if let Some(Expression::Ident(_)) = cur {
+                    ExprNode::Call(Box::new(cur.unwrap().clone()), find_params(iter, cur))
+                //if there was an identifier last before the '(', it should be a function call
+                } else {
+                    //Otherwise it should be a statement
+                    ExprNode::Statement(Box::new(expr(iter, cur)))
+                }
+            }
+            Expression::Rparen => {
+                node = if let Some(Expression::Semicolon) = iter.peek() {
+                    make_node(cur.unwrap())
+                } else {
+                    let tmp = iter.next();
+                    expr(iter, tmp)
+                }
+            }
+            _ => {}
         }
-        _ => {}
+    } else {
+        node = ExprNode::EOF;
     }
 
     node
