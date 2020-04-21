@@ -29,9 +29,9 @@ pub fn parse(tokens: Vec<Expression>) -> ExprNode {
     let mut iter = tokens.iter().peekable();
     let current = iter.next();
 
-    let node = make_block(&mut iter, current);
+    make_block(&mut iter, current)
 
-    node
+    // node
 }
 
 fn make_block(iter: &mut Peekable<Iter<'_, Expression>>, cur: Option<&Expression>) -> ExprNode {
@@ -61,7 +61,7 @@ fn make_block(iter: &mut Peekable<Iter<'_, Expression>>, cur: Option<&Expression
 fn key_word(
     iter: &mut Peekable<Iter<'_, Expression>>,
     cur: Option<&Expression>,
-    word: &&String,
+    word: &str,
 ) -> ExprNode {
     let mut node = ExprNode::Illegal(None);
     match word.trim() {
@@ -97,12 +97,9 @@ fn def_func(iter: &mut Peekable<Iter<'_, Expression>>, _cur: Option<&Expression>
     }
 
     if let Some(b) = iter.next() {
-        match b {
-            Expression::Lbrace => {
-                let c = iter.next();
-                body = make_block(iter, c);
-            }
-            _ => {}
+        if let Expression::Lbrace = b {
+            let c = iter.next();
+            body = make_block(iter, c);
         }
     }
 
@@ -134,16 +131,11 @@ fn expr(iter: &mut Peekable<Iter<'_, Expression>>, cur: Option<&Expression>) -> 
             )
         }
         Some(Expression::Operator(_)) => {
-            node = if let Some(Expression::Lparen) = cur {
-                let tmp = ExprNode::ParenOp(Box::new(expr(iter, t)));
-                tmp
-            } else {
-                ExprNode::Operation(
-                    Box::new(t.unwrap().clone()),
-                    Box::new(make_node(cur.unwrap())),
-                    Box::new(expr(iter, t)),
-                )
-            }
+            node = ExprNode::Operation(
+                Box::new(t.unwrap().clone()),
+                Box::new(make_node(cur.unwrap())),
+                Box::new(expr(iter, t)),
+            )
         }
         Some(Expression::Word(_s)) => node = ExprNode::Literal(Box::new(t.unwrap().clone())),
         Some(Expression::Number(_n)) => node = ExprNode::Literal(Box::new(t.unwrap().clone())),

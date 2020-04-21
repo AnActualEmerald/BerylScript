@@ -91,13 +91,13 @@ impl Runtime {
             _ => res = Value::Null,
         }
         self.returning = false;
-        return res;
+        res
         // Value::Null
     }
 
     fn make_name(&self, name: &Expression, _frame: &mut StackFrame) -> Value {
         if let Expression::Ident(i) = name {
-            return Value::Name(i.clone().to_owned());
+            return Value::Name(i.clone());
         }
         Value::Null
     }
@@ -105,7 +105,7 @@ impl Runtime {
     fn def_func(
         &mut self,
         name: &Expression,
-        params: &Vec<ExprNode>,
+        params: &[ExprNode],
         body: &ExprNode,
         frame: &mut StackFrame,
     ) -> Value {
@@ -124,9 +124,9 @@ impl Runtime {
 
     fn make_literal(&mut self, lit: &Expression, _frame: &mut StackFrame) -> Value {
         match lit {
-            Expression::Word(w) => return Value::EmString(String::from(w)),
-            Expression::Number(n) => return Value::Float(*n),
-            _ => return Value::Null,
+            Expression::Word(w) => Value::EmString(String::from(w)),
+            Expression::Number(n) => Value::Float(*n),
+            _ => Value::Null,
         }
         // Value::Null
     }
@@ -229,34 +229,28 @@ impl Runtime {
         Value::Null
     }
 
-    fn do_call(
-        &mut self,
-        name: &Expression,
-        param: &Vec<ExprNode>,
-        frame: &mut StackFrame,
-    ) -> Value {
+    fn do_call(&mut self, name: &Expression, param: &[ExprNode], frame: &mut StackFrame) -> Value {
         if let Expression::Key(_) = name {
             return self.keyword(name, &param[0], frame);
         }
 
         if let Expression::Ident(n) = name {
-            let f: Value;
+            let func: Value;
             {
-                f = frame.get_var_copy(n);
+                func = frame.get_var_copy(n);
             }
-            match &f {
-                Value::Function(_, p, b) => {
-                    if p.len() != param.len() {
+            match &func {
+                Value::Function(_, params, body) => {
+                    if params.len() != param.len() {
                         panic!(
                             "Expected {} arguments for {}, got {}",
-                            p.len(),
+                            params.len(),
                             n,
                             param.len()
                         );
                     } else {
-                        let mut i = 0;
-                        for e in param.iter() {
-                            if let Value::Name(arg) = &p[i] {
+                        for (i, e) in param.iter().enumerate() {
+                            if let Value::Name(arg) = &params[i] {
                                 let val = self.walk_tree(&e, frame);
                                 match val {
                                     Value::Name(n) => {
@@ -267,18 +261,18 @@ impl Runtime {
                                     _ => frame.set_var(arg.to_string(), val),
                                 }
                             }
-                            i = i + 1;
                         }
-                        let ret = self.walk_tree(&b, frame);
-                        p.iter().for_each(|e| match e {
-                            Value::Name(n) => frame.free_var(n),
-                            _ => {}
+                        let ret = self.walk_tree(&body, frame);
+                        params.iter().for_each(|e| {
+                            if let Value::Name(n) = e {
+                                frame.free_var(n)
+                            }
                         });
 
                         return ret;
                     }
                 }
-                _ => panic!("Expected function, found {}", f),
+                _ => panic!("Expected function, found {}", func),
             }
         }
 
@@ -291,7 +285,7 @@ impl StackFrame {
         self.stack.insert(name, v);
     }
 
-    fn get_var(&self, name: &String) -> &Value {
+    fn get_var(&self, name: &str) -> &Value {
         if self.stack.contains_key(name) {
             &self.stack[name]
         } else {
@@ -299,7 +293,7 @@ impl StackFrame {
         }
     }
 
-    fn get_var_copy(&self, name: &String) -> Value {
+    fn get_var_copy(&self, name: &str) -> Value {
         if self.stack.contains_key(name) {
             self.stack[name].clone()
         } else {
@@ -307,7 +301,7 @@ impl StackFrame {
         }
     }
 
-    fn free_var(&mut self, name: &String) {
+    fn free_var(&mut self, name: &str) {
         if self.stack.contains_key(name) {
             self.stack.remove(name);
         }

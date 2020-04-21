@@ -1,3 +1,4 @@
+#![allow(clippy::if_same_then_else)]
 extern crate regex;
 
 #[cfg(test)]
