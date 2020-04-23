@@ -12,6 +12,7 @@ enum Value {
     Null,
     Float(f32),
     EmString(String),
+    EmBool(bool),
     // Char(u8),
     Name(String),
     Function(Expression, Vec<Value>, ExprNode),
@@ -26,6 +27,7 @@ impl std::fmt::Display for Value {
             Value::Name(n) => write!(f, "{}", n),
             Value::Null => write!(f, "null"),
             Value::Function(n, p, _) => write!(f, "{:?}({:?})", n, p),
+            Value::EmBool(b) => write!(f, "{}", b),
         }
     }
 }
@@ -87,6 +89,7 @@ impl Runtime {
             ExprNode::Call(ex, n) => res = self.do_call(&**ex, &*n, frame),
             ExprNode::StrLiteral(s) => res = Value::EmString(*s.clone()),
             ExprNode::NumLiteral(n) => res = Value::Float(**n),
+            ExprNode::BoolLiteral(b) => res = Value::EmBool(*b),
             ExprNode::Name(n) => res = Value::Name(*n.clone()),
             ExprNode::Func(n, p, b) => res = self.def_func(n, p, b, frame),
             ExprNode::Statement(e) => res = self.walk_tree(&**e, frame),
@@ -178,6 +181,19 @@ impl Runtime {
                     process::exit(-1);
                 }
             }
+            Expression::BoolOp(op) => {
+                let l_p = self.walk_tree(&left, frame);
+                let r_p = self.walk_tree(&right, frame);
+
+                match op.as_str() {
+                    "==" => return Value::EmBool(l_p == r_p),
+                    "!=" => return Value::EmBool(l_p != r_p),
+                    _ => {
+                        println!("Invalid Operator: {}", op);
+                        process::exit(-1);
+                    }
+                }
+            }
             _ => {}
         }
 
@@ -186,37 +202,44 @@ impl Runtime {
 
     fn keyword(&mut self, name: &Expression, value: &ExprNode, frame: &mut StackFrame) -> Value {
         if let Expression::Key(s) = name {
-            if s == "print" {
-                // println!("DEBUG: value={:?}", value);
-                match value {
-                    ExprNode::Call(n, args) => {
-                        println!("{}", self.do_call(n, args, frame));
-                    }
-                    _ => {
-                        let tmp = self.walk_tree(&value, frame);
-                        // println!("DEBUG: tmp={:?}", tmp);
-                        match tmp {
-                            Value::EmString(r) => println!("{}", r),
-                            // Value::Char(c) => println!("{}", c),
-                            Value::Float(i) => println!("{}", i),
-                            Value::Name(n) => println!("{}", frame.get_var(&n)),
-                            Value::Null => println!("null"),
-                            Value::Function(_, _, _) => {
-                                println!("{}", self.walk_tree(&value, frame))
-                            } // _ => {}
+            match s.as_str() {
+                "print" => {
+                    // println!("DEBUG: value={:?}", value);
+                    match value {
+                        ExprNode::Call(n, args) => {
+                            println!("{}", self.do_call(n, args, frame));
+                        }
+                        _ => {
+                            let tmp = self.walk_tree(&value, frame);
+                            // println!("DEBUG: tmp={:?}", tmp);
+                            match tmp {
+                                Value::EmString(r) => println!("{}", r),
+                                // Value::Char(c) => println!("{}", c),
+                                Value::Float(i) => println!("{}", i),
+                                Value::Name(n) => println!("{}", frame.get_var(&n)),
+                                Value::Null => println!("null"),
+                                Value::Function(_, _, _) => {
+                                    println!("{}", self.walk_tree(&value, frame))
+                                } // _ => {}
+                                Value::EmBool(b) => println!("{}", b),
+                            }
                         }
                     }
                 }
-            } else if s == "return" {
-                self.returning = true;
-                match value {
-                    ExprNode::Call(n, args) => {
-                        return self.do_call(n, args, frame);
-                    }
-                    _ => {
-                        return self.walk_tree(&value, frame);
+                "return" => {
+                    self.returning = true;
+                    match value {
+                        ExprNode::Call(n, args) => {
+                            return self.do_call(n, args, frame);
+                        }
+                        _ => {
+                            return self.walk_tree(&value, frame);
+                        }
                     }
                 }
+                // "true" => return Value::EmBool(true),
+                // "false" => return Value::EmBool(false),
+                _ => {}
             }
         }
 

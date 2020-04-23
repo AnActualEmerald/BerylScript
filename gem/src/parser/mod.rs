@@ -14,6 +14,7 @@ pub enum ExprNode {
     Operation(Box<Expression>, Box<ExprNode>, Box<ExprNode>), //Operator, Left side, Right side
     StrLiteral(Box<String>),
     NumLiteral(Box<f32>),
+    BoolLiteral(bool),
     Name(Box<String>),
     Call(Box<Expression>, Vec<ExprNode>), //name, args
     Block(Vec<ExprNode>),
@@ -60,15 +61,14 @@ fn key_word(
     cur: Option<&Expression>,
     word: &str,
 ) -> ExprNode {
-    let mut node = ExprNode::Illegal(None);
     match word.trim() {
-        "print" => node = ExprNode::Call(Box::new(cur.unwrap().clone()), vec![expr(iter, cur)]),
-        "fn" => node = def_func(iter, cur),
-        "return" => node = ExprNode::ReturnVal(Box::new(expr(iter, cur))),
-        _ => {}
+        "print" => ExprNode::Call(Box::new(cur.unwrap().clone()), vec![expr(iter, cur)]),
+        "fn" => def_func(iter, cur),
+        "return" => ExprNode::ReturnVal(Box::new(expr(iter, cur))),
+        "true" => ExprNode::BoolLiteral(true),
+        "false" => ExprNode::BoolLiteral(false),
+        _ => panic!("Unknown keyword {}", word),
     }
-
-    node
 }
 
 fn def_func(iter: &mut Peekable<Iter<'_, Expression>>, _cur: Option<&Expression>) -> ExprNode {
@@ -105,13 +105,17 @@ fn expr(iter: &mut Peekable<Iter<'_, Expression>>, cur: Option<&Expression>) -> 
     let t = iter.next();
     let mut node: ExprNode = ExprNode::Illegal(None);
 
-    if let Some(Expression::Operator(_)) = iter.peek() {
-        match cur {
-            Some(Expression::Lparen) => {
-                return expr(iter, cur);
-            }
-            Some(_) => return expr(iter, t),
-            None => {}
+    if let Some(next) = iter.peek() {
+        match next {
+            Expression::Operator(_) => match cur {
+                Some(Expression::Lparen) => {
+                    return expr(iter, cur);
+                }
+                Some(_) => return expr(iter, t),
+                None => {}
+            },
+            Expression::BoolOp(_) => return expr(iter, t),
+            _ => {}
         }
     }
     if let Some(exp) = t {
@@ -132,8 +136,16 @@ fn expr(iter: &mut Peekable<Iter<'_, Expression>>, cur: Option<&Expression>) -> 
                     Box::new(expr(iter, t)),
                 )
             }
+            Expression::BoolOp(_) => {
+                node = ExprNode::Operation(
+                    Box::new(t.unwrap().clone()),
+                    Box::new(make_node(cur.unwrap())),
+                    Box::new(expr(iter, t)),
+                )
+            }
             Expression::Word(s) => node = ExprNode::StrLiteral(Box::new(s.to_string())),
             Expression::Number(n) => node = ExprNode::NumLiteral(Box::new(*n)),
+            Expression::Key(w) => node = key_word(iter, cur, w),
             Expression::Ident(i) => {
                 node = if let Some(Expression::Lparen) = iter.peek() {
                     // iter.next();
