@@ -5,8 +5,8 @@ use std::collections::HashMap;
 
 #[test]
 fn generate_literals() {
-    let dummy_string = ExprNode::Literal(Box::new(Expression::Word("Test".to_owned())));
-    let dummy_number = ExprNode::Literal(Box::new(Expression::Number(69.0)));
+    let dummy_string = ExprNode::StrLiteral(Box::new("Test".to_owned()));
+    let dummy_number = ExprNode::NumLiteral(Box::new(69.0 as f32));
 
     let expected_string = Value::EmString("Test".to_owned());
     let expected_number = Value::Float(69.0);
@@ -24,12 +24,8 @@ fn generate_literals() {
 fn assign_vars() {
     let op = ExprNode::Operation(
         Box::new(Expression::Equal),
-        Box::new(ExprNode::Name(Box::new(Expression::Ident(
-            "test".to_owned(),
-        )))),
-        Box::new(ExprNode::Literal(Box::new(Expression::Word(
-            "this is a test".to_owned(),
-        )))),
+        Box::new(ExprNode::Name(Box::new("test".to_owned()))),
+        Box::new(ExprNode::StrLiteral(Box::new("this is a test".to_owned()))),
     );
 
     let expected = Value::EmString("this is a test".to_owned());

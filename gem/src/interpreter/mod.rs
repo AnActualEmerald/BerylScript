@@ -5,11 +5,12 @@ use super::lexer::Expression;
 use super::parser::ExprNode;
 use std::collections::HashMap;
 use std::fmt;
+use std::process;
 
 #[derive(Debug, Clone, PartialEq)]
 enum Value {
     Null,
-    Float(f64),
+    Float(f32),
     EmString(String),
     // Char(u8),
     Name(String),
@@ -84,8 +85,9 @@ impl Runtime {
             }
             ExprNode::Operation(o, l, r) => res = self.do_operation(&**o, &**l, &**r, frame),
             ExprNode::Call(ex, n) => res = self.do_call(&**ex, &*n, frame),
-            ExprNode::Literal(l) => res = self.make_literal(&**l, frame),
-            ExprNode::Name(n) => res = self.make_name(&**n, frame),
+            ExprNode::StrLiteral(s) => res = Value::EmString(*s.clone()),
+            ExprNode::NumLiteral(n) => res = Value::Float(**n),
+            ExprNode::Name(n) => res = Value::Name(*n.clone()),
             ExprNode::Func(n, p, b) => res = self.def_func(n, p, b, frame),
             ExprNode::Statement(e) => res = self.walk_tree(&**e, frame),
             _ => res = Value::Null,
@@ -93,13 +95,6 @@ impl Runtime {
         self.returning = false;
         res
         // Value::Null
-    }
-
-    fn make_name(&self, name: &Expression, _frame: &mut StackFrame) -> Value {
-        if let Expression::Ident(i) = name {
-            return Value::Name(i.clone());
-        }
-        Value::Null
     }
 
     fn def_func(
@@ -117,18 +112,10 @@ impl Runtime {
             let f = Value::Function(name.clone(), args, body.clone());
             frame.set_var(n.to_string(), f.clone());
             return f;
+        } else {
+            println!("Expected identifier, found {:?}", name);
+            process::exit(-1); //If we don't get a name for the funciton, we should exit since things will break
         }
-
-        Value::Null
-    }
-
-    fn make_literal(&mut self, lit: &Expression, _frame: &mut StackFrame) -> Value {
-        match lit {
-            Expression::Word(w) => Value::EmString(String::from(w)),
-            Expression::Number(n) => Value::Float(*n),
-            _ => Value::Null,
-        }
-        // Value::Null
     }
 
     fn do_operation(
@@ -140,10 +127,14 @@ impl Runtime {
     ) -> Value {
         match opr {
             Expression::Equal => {
-                if let Value::Name(n) = self.walk_tree(&left, frame) {
+                let tmp = self.walk_tree(&left, frame);
+                if let Value::Name(n) = tmp {
                     let v = self.walk_tree(&right, frame);
                     frame.set_var(n, v);
                     return Value::Null;
+                } else {
+                    println!("Expected name, found {:?}", tmp);
+                    process::exit(-1);
                 }
             }
             Expression::Operator(o) => {
@@ -156,10 +147,10 @@ impl Runtime {
                         if let Value::Float(f) = frame.get_var(&n) {
                             *f
                         } else {
-                            0.0 as f64
+                            0.0 as f32
                         }
                     }
-                    _ => 0.0 as f64,
+                    _ => 0.0 as f32,
                 };
 
                 let r = match r_p {
@@ -168,10 +159,10 @@ impl Runtime {
                         if let Value::Float(f) = frame.get_var(&n) {
                             *f
                         } else {
-                            0.0 as f64
+                            0.0 as f32
                         }
                     }
-                    _ => 0.0 as f64,
+                    _ => 0.0 as f32,
                 };
 
                 if *o == '+' {
@@ -182,6 +173,9 @@ impl Runtime {
                     return Value::Float(f * r);
                 } else if *o == '/' {
                     return Value::Float(f / r);
+                } else {
+                    println!("Invalid Operator: {}", o);
+                    process::exit(-1);
                 }
             }
             _ => {}
@@ -230,53 +224,57 @@ impl Runtime {
     }
 
     fn do_call(&mut self, name: &Expression, param: &[ExprNode], frame: &mut StackFrame) -> Value {
-        if let Expression::Key(_) = name {
-            return self.keyword(name, &param[0], frame);
-        }
-
-        if let Expression::Ident(n) = name {
-            let func: Value;
-            {
-                func = frame.get_var_copy(n);
-            }
-            match &func {
-                Value::Function(_, params, body) => {
-                    if params.len() != param.len() {
-                        panic!(
-                            "Expected {} arguments for {}, got {}",
-                            params.len(),
-                            n,
-                            param.len()
-                        );
-                    } else {
-                        for (i, e) in param.iter().enumerate() {
-                            if let Value::Name(arg) = &params[i] {
-                                let val = self.walk_tree(&e, frame);
-                                match val {
-                                    Value::Name(n) => {
-                                        let tmp = frame.get_var(&n).clone();
-                                        frame.set_var(arg.to_string(), tmp);
-                                        //I'd really like to not have to copy here
+        match name {
+            Expression::Key(_) => return self.keyword(name, &param[0], frame),
+            Expression::Ident(n) => {
+                let func: Value;
+                {
+                    func = frame.get_var_copy(n);
+                }
+                match &func {
+                    Value::Function(_, params, body) => {
+                        if params.len() != param.len() {
+                            panic!(
+                                "Expected {} arguments for {}, got {}",
+                                params.len(),
+                                n,
+                                param.len()
+                            );
+                        } else {
+                            for (i, e) in param.iter().enumerate() {
+                                if let Value::Name(arg) = &params[i] {
+                                    let val = self.walk_tree(&e, frame);
+                                    match val {
+                                        Value::Name(n) => {
+                                            let tmp = frame.get_var(&n).clone();
+                                            frame.set_var(arg.to_string(), tmp);
+                                            //I'd really like to not have to copy here
+                                        }
+                                        _ => frame.set_var(arg.to_string(), val),
                                     }
-                                    _ => frame.set_var(arg.to_string(), val),
                                 }
                             }
-                        }
-                        let ret = self.walk_tree(&body, frame);
-                        params.iter().for_each(|e| {
-                            if let Value::Name(n) = e {
-                                frame.free_var(n)
-                            }
-                        });
+                            let ret = self.walk_tree(&body, frame);
+                            params.iter().for_each(|e| {
+                                if let Value::Name(n) = e {
+                                    frame.free_var(n)
+                                }
+                            });
 
-                        return ret;
+                            return ret;
+                        }
+                    }
+                    _ => {
+                        println!("Expected function, found {}", func);
+                        process::exit(-1);
                     }
                 }
-                _ => panic!("Expected function, found {}", func),
+            }
+            _ => {
+                println!("Expected keyword or identifier, found {:?}", name);
+                process::exit(-1);
             }
         }
-
-        Value::Null
     }
 }
 

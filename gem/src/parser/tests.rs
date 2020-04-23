@@ -21,9 +21,7 @@ fn ast_generation() {
         vec![],
         Box::new(ExprNode::Block(vec![ExprNode::Call(
             Box::new(Expression::Key("print".to_owned())),
-            vec![ExprNode::Literal(Box::new(Expression::Word(
-                "hello world".to_owned(),
-            )))],
+            vec![ExprNode::StrLiteral(Box::new("hello world".to_owned()))],
         )])),
     )]);
 

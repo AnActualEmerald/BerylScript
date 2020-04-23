@@ -5,6 +5,7 @@ extern crate regex;
 mod tests;
 
 use regex::Regex;
+use std::process;
 use std::str;
 
 // Enums are more idomatic and make the resulting Vec much easier to understand
@@ -13,7 +14,7 @@ use std::str;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     Ident(String),
-    Number(f64),
+    Number(f32),
     Word(String),
     Key(String),
     Operator(char),
@@ -40,53 +41,89 @@ pub fn tokenize(data: &str) -> Vec<Expression> {
     let mut tok = String::new();
     let mut current_state = State::Nothing;
 
-    let ch = data.chars().clone();
-
     let valid_chars = Regex::new(r"\D+[[:word:]]*").unwrap();
     let valid_num = Regex::new(r"\d*").unwrap();
     let valid_symb = Regex::new(r"[\{\}\(\)=;\*\+\-/#]").unwrap();
 
-    // This whole thing could use a mutable iterator to check over the data until it finds
-    // somthing of interest i.e. the closing " or whatever, but idk if that's faster or better
-    // so this is what I'll stick with for now
-    for c in ch {
-        if current_state == State::Comment {
-            if c == '\n' {
-                current_state = State::Nothing;
-                tok = format!("");
-                continue;
-            } else {
-                continue;
-            }
-        } else if !c.is_whitespace() && current_state != State::EmString {
-            tok.push(c);
-        } else if current_state == State::EmString {
-            tok.push(c);
-        }
+    let mut ch = data.chars().peekable();
 
-        if c == '"' {
-            if current_state == State::EmString {
-                tok.pop();
-                result.push(Expression::Word(tok.clone()));
-                tok = format!("");
-                current_state = State::Nothing;
-            } else {
-                current_state = State::EmString;
-                tok = format!("");
-            }
-        } else if valid_symb.is_match(&tok) || c.is_whitespace() && current_state != State::EmString
-        {
-            if !c.is_whitespace() {
-                tok.pop();
-            }
-            match current_state {
-                State::EmName => result.push(Expression::Ident(tok.clone())),
-                State::EmNumber => {
-                    result.push(Expression::Number(tok.clone().parse::<f64>().unwrap()))
+    while let Some(c) = ch.next() {
+        match current_state {
+            State::Comment => {
+                if c == '\n' {
+                    current_state = State::Nothing;
+                    tok.clear();
                 }
-                _ => {}
             }
-            match c {
+            State::EmString => {
+                if c == '"' {
+                    result.push(Expression::Word(tok.clone()));
+                    tok.clear();
+                    current_state = State::Nothing;
+                } else {
+                    tok.push(c);
+                }
+            }
+            State::EmNumber => {
+                if let Some(s) = ch.peek() {
+                    if c.is_whitespace() || valid_symb.is_match(&s.to_string()) {
+                        current_state = State::Nothing;
+                        if !c.is_whitespace() {
+                            //need this because of the peek, the current char
+                            //could be part of the thing we're accumulating
+                            tok.push(c);
+                        }
+                        result.push(Expression::Number(tok.parse::<f32>().unwrap_or_else(|e| {
+                            println!("Got this error message ({}) when parsing this: {}", e, tok);
+                            process::exit(-1);
+                        })));
+                        tok.clear();
+                    } else {
+                        tok.push(c);
+                    }
+                }
+            }
+            State::EmName => {
+                if let Some(s) = ch.peek() {
+                    if c.is_whitespace() || valid_symb.is_match(&s.to_string()) {
+                        current_state = State::Nothing;
+                        if !c.is_whitespace() {
+                            //need this because of the peek, the current char
+                            //could be part of the thing we're accumulating
+                            tok.push(c);
+                        }
+                        match tok.as_str() {
+                            "fn" => {
+                                result.push(Expression::Key(tok.to_string()));
+
+                                tok.clear();
+                            }
+                            "print" => {
+                                result.push(Expression::Key(tok.to_string()));
+
+                                tok.clear();
+                            }
+                            "return" => {
+                                result.push(Expression::Key(tok.to_string()));
+
+                                tok.clear();
+                            }
+                            _ => {
+                                result.push(Expression::Ident(tok.to_string()));
+
+                                tok.clear();
+                            }
+                        }
+                    } else {
+                        tok.push(c);
+                    }
+                }
+            }
+            State::Nothing => match c {
+                '"' => {
+                    current_state = State::EmString;
+                    tok.clear();
+                }
                 '{' => result.push(Expression::Lbrace),
                 '}' => result.push(Expression::Rbrace),
                 '(' => result.push(Expression::Lparen),
@@ -99,33 +136,17 @@ pub fn tokenize(data: &str) -> Vec<Expression> {
                 ';' => result.push(Expression::Semicolon),
                 '#' => {
                     current_state = State::Comment;
-                    continue;
                 }
-                _ => {}
-            }
-            tok = format!("");
-            current_state = State::Nothing;
-        } else if valid_chars.is_match(&tok) && current_state != State::EmString {
-            match tok.as_str() {
-                "fn" => {
-                    result.push(Expression::Key(tok.clone()));
-                    current_state = State::Nothing;
-                    tok = format!("");
+                ' ' | '\n' => {}
+                _ => {
+                    tok.push(c);
+                    if valid_chars.is_match(&tok) {
+                        current_state = State::EmName;
+                    } else if valid_num.is_match(&tok) {
+                        current_state = State::EmNumber;
+                    }
                 }
-                "print" => {
-                    result.push(Expression::Key(tok.clone()));
-                    current_state = State::Nothing;
-                    tok = format!("");
-                }
-                "return" => {
-                    result.push(Expression::Key(tok.clone()));
-                    current_state = State::Nothing;
-                    tok = format!("");
-                }
-                _ => current_state = State::EmName,
-            }
-        } else if valid_num.is_match(&tok) && current_state != State::EmString {
-            current_state = State::EmNumber
+            },
         }
     }
     result.push(Expression::Ident("main".to_owned()));
