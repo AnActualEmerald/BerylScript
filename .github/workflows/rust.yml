@@ -12,8 +12,11 @@ jobs:
 
         steps:
             - uses: actions/checkout@v2
-            - name: Update
-              run: rustup default nightly && rustup update
+            - name: Install latest nightly
+              uses: actions-rs/toolchain@v1
+              with:
+                  toolchain: nightly
+                  override: true
             - name: Build
               run: cargo build +nightly --verbose
             - name: Run tests
