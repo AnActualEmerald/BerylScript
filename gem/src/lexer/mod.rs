@@ -5,6 +5,7 @@ extern crate regex;
 mod tests;
 
 use regex::Regex;
+use std::process;
 use std::str;
 
 // Enums are more idomatic and make the resulting Vec much easier to understand
@@ -67,12 +68,14 @@ pub fn tokenize(data: &str) -> Vec<Expression> {
                 if let Some(s) = ch.peek() {
                     if c.is_whitespace() || valid_symb.is_match(&s.to_string()) {
                         current_state = State::Nothing;
+                        if !c.is_whitespace() {
+                            //need this because of the peek, the current char
+                            //could be part of the thing we're accumulating
+                            tok.push(c);
+                        }
                         result.push(Expression::Number(tok.parse::<f32>().unwrap_or_else(|e| {
-                            println!(
-                                "Got this error message ({:?}) when parsing this: {:?}",
-                                e, tok
-                            );
-                            0.0 as f32
+                            println!("Got this error message ({}) when parsing this: {}", e, tok);
+                            process::exit(-1);
                         })));
                         tok.clear();
                     } else {
@@ -85,6 +88,8 @@ pub fn tokenize(data: &str) -> Vec<Expression> {
                     if c.is_whitespace() || valid_symb.is_match(&s.to_string()) {
                         current_state = State::Nothing;
                         if !c.is_whitespace() {
+                            //need this because of the peek, the current char
+                            //could be part of the thing we're accumulating
                             tok.push(c);
                         }
                         match tok.as_str() {
