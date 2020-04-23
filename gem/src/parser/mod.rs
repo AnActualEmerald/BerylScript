@@ -12,11 +12,11 @@ use std::slice::Iter;
 #[derive(PartialEq, Debug, Clone)]
 pub enum ExprNode {
     Operation(Box<Expression>, Box<ExprNode>, Box<ExprNode>), //Operator, Left side, Right side
-    Literal(Box<Expression>),
-    Name(Box<Expression>),
+    StrLiteral(Box<String>),
+    NumLiteral(Box<f32>),
+    Name(Box<String>),
     Call(Box<Expression>, Vec<ExprNode>), //name, args
     Block(Vec<ExprNode>),
-    ParenOp(Box<ExprNode>),
     Func(Box<Expression>, Vec<ExprNode>, Box<ExprNode>), //Name, params, function body
     Statement(Box<ExprNode>),
     ReturnVal(Box<ExprNode>),
@@ -87,7 +87,7 @@ fn def_func(iter: &mut Peekable<Iter<'_, Expression>>, _cur: Option<&Expression>
         match p {
             Expression::Lparen => continue,
             Expression::Rparen => break,
-            Expression::Ident(_) => params.push(ExprNode::Name(Box::new(p.clone()))),
+            Expression::Ident(i) => params.push(ExprNode::Name(Box::new(i.to_string()))),
             _ => {}
         }
     }
@@ -117,11 +117,13 @@ fn expr(iter: &mut Peekable<Iter<'_, Expression>>, cur: Option<&Expression>) -> 
     if let Some(exp) = t {
         match exp {
             Expression::Equal => {
-                node = ExprNode::Operation(
-                    Box::new(t.unwrap().clone()),
-                    Box::new(ExprNode::Name(Box::new(cur.unwrap().clone()))),
-                    Box::new(expr(iter, t)),
-                )
+                if let Some(Expression::Ident(name)) = cur {
+                    node = ExprNode::Operation(
+                        Box::new(t.unwrap().clone()),
+                        Box::new(ExprNode::Name(Box::new(name.to_string()))),
+                        Box::new(expr(iter, t)),
+                    )
+                }
             }
             Expression::Operator(_) => {
                 node = ExprNode::Operation(
@@ -130,14 +132,14 @@ fn expr(iter: &mut Peekable<Iter<'_, Expression>>, cur: Option<&Expression>) -> 
                     Box::new(expr(iter, t)),
                 )
             }
-            Expression::Word(_s) => node = ExprNode::Literal(Box::new(t.unwrap().clone())),
-            Expression::Number(_n) => node = ExprNode::Literal(Box::new(t.unwrap().clone())),
-            Expression::Ident(_i) => {
+            Expression::Word(s) => node = ExprNode::StrLiteral(Box::new(s.to_string())),
+            Expression::Number(n) => node = ExprNode::NumLiteral(Box::new(*n)),
+            Expression::Ident(i) => {
                 node = if let Some(Expression::Lparen) = iter.peek() {
                     // iter.next();
                     expr(iter, t)
                 } else {
-                    ExprNode::Name(Box::new(t.unwrap().clone()))
+                    ExprNode::Name(Box::new(i.to_string()))
                 }
             }
             Expression::Lparen => {
@@ -168,21 +170,13 @@ fn expr(iter: &mut Peekable<Iter<'_, Expression>>, cur: Option<&Expression>) -> 
 }
 
 fn make_node(exp: &Expression) -> ExprNode {
-    let node: ExprNode;
-    match exp {
-        Expression::Word(_s) => {
-            node = ExprNode::Literal(Box::new(exp.clone()));
-        }
-        Expression::Number(_n) => {
-            node = ExprNode::Literal(Box::new(exp.clone()));
-        }
-        Expression::Ident(_i) => {
-            node = ExprNode::Name(Box::new(exp.clone()));
-        }
-        _ => node = ExprNode::Illegal(Some(exp.clone())),
+    //feels bad to clone here but I don't know if it's avoidable
+    match exp.clone() {
+        Expression::Word(s) => ExprNode::StrLiteral(Box::new(s)),
+        Expression::Number(n) => ExprNode::NumLiteral(Box::new(n)),
+        Expression::Ident(i) => ExprNode::Name(Box::new(i)),
+        _ => ExprNode::Illegal(Some(exp.clone())),
     }
-
-    node
 }
 
 fn find_params(

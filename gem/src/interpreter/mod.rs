@@ -9,7 +9,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 enum Value {
     Null,
-    Float(f64),
+    Float(f32),
     EmString(String),
     // Char(u8),
     Name(String),
@@ -84,8 +84,9 @@ impl Runtime {
             }
             ExprNode::Operation(o, l, r) => res = self.do_operation(&**o, &**l, &**r, frame),
             ExprNode::Call(ex, n) => res = self.do_call(&**ex, &*n, frame),
-            ExprNode::Literal(l) => res = self.make_literal(&**l, frame),
-            ExprNode::Name(n) => res = self.make_name(&**n, frame),
+            ExprNode::StrLiteral(s) => res = Value::EmString(*s.clone()),
+            ExprNode::NumLiteral(n) => res = Value::Float(**n),
+            ExprNode::Name(n) => res = Value::Name(*n.clone()),
             ExprNode::Func(n, p, b) => res = self.def_func(n, p, b, frame),
             ExprNode::Statement(e) => res = self.walk_tree(&**e, frame),
             _ => res = Value::Null,
@@ -93,13 +94,6 @@ impl Runtime {
         self.returning = false;
         res
         // Value::Null
-    }
-
-    fn make_name(&self, name: &Expression, _frame: &mut StackFrame) -> Value {
-        if let Expression::Ident(i) = name {
-            return Value::Name(i.clone());
-        }
-        Value::Null
     }
 
     fn def_func(
@@ -120,15 +114,6 @@ impl Runtime {
         }
 
         Value::Null
-    }
-
-    fn make_literal(&mut self, lit: &Expression, _frame: &mut StackFrame) -> Value {
-        match lit {
-            Expression::Word(w) => Value::EmString(String::from(w)),
-            Expression::Number(n) => Value::Float(*n),
-            _ => Value::Null,
-        }
-        // Value::Null
     }
 
     fn do_operation(
@@ -156,10 +141,10 @@ impl Runtime {
                         if let Value::Float(f) = frame.get_var(&n) {
                             *f
                         } else {
-                            0.0 as f64
+                            0.0 as f32
                         }
                     }
-                    _ => 0.0 as f64,
+                    _ => 0.0 as f32,
                 };
 
                 let r = match r_p {
@@ -168,10 +153,10 @@ impl Runtime {
                         if let Value::Float(f) = frame.get_var(&n) {
                             *f
                         } else {
-                            0.0 as f64
+                            0.0 as f32
                         }
                     }
-                    _ => 0.0 as f64,
+                    _ => 0.0 as f32,
                 };
 
                 if *o == '+' {

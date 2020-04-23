@@ -13,7 +13,7 @@ use std::str;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     Ident(String),
-    Number(f64),
+    Number(f32),
     Word(String),
     Key(String),
     Operator(char),
@@ -82,7 +82,7 @@ pub fn tokenize(data: &str) -> Vec<Expression> {
             match current_state {
                 State::EmName => result.push(Expression::Ident(tok.clone())),
                 State::EmNumber => {
-                    result.push(Expression::Number(tok.clone().parse::<f64>().unwrap()))
+                    result.push(Expression::Number(tok.clone().parse::<f32>().unwrap()))
                 }
                 _ => {}
             }
