@@ -10,6 +10,7 @@ mod bench;
 pub fn run(data: String) {
     // println!("Got data: {}", data);
     let tokens = lexer::tokenize(&data);
+    // println!("Generated tokens: {:?}", tokens);
     let ast = parser::parse(tokens);
     interpreter::run(ast);
 }
