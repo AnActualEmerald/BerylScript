@@ -18,6 +18,7 @@ pub enum Expression {
     Word(String),
     Key(String),
     Operator(char),
+    BoolOp(String),
     Equal,
     Rparen,
     Lparen,
@@ -43,7 +44,7 @@ pub fn tokenize(data: &str) -> Vec<Expression> {
 
     let valid_chars = Regex::new(r"\D+[[:word:]]*").unwrap();
     let valid_num = Regex::new(r"\d*").unwrap();
-    let valid_symb = Regex::new(r"[\{\}\(\)=;\*\+\-/#]").unwrap();
+    let valid_symb = Regex::new(r"[\{\}\(\)=;\*\+\-/#!]").unwrap();
 
     let mut ch = data.chars().peekable();
 
@@ -108,6 +109,16 @@ pub fn tokenize(data: &str) -> Vec<Expression> {
 
                                 tok.clear();
                             }
+                            "true" => {
+                                result.push(Expression::Key(tok.to_string()));
+
+                                tok.clear();
+                            }
+                            "false" => {
+                                result.push(Expression::Key(tok.to_string()));
+
+                                tok.clear();
+                            }
                             _ => {
                                 result.push(Expression::Ident(tok.to_string()));
 
@@ -128,12 +139,31 @@ pub fn tokenize(data: &str) -> Vec<Expression> {
                 '}' => result.push(Expression::Rbrace),
                 '(' => result.push(Expression::Lparen),
                 ')' => result.push(Expression::Rparen),
-                '=' => result.push(Expression::Equal),
+                '=' => {
+                    if let Some(sym) = ch.peek() {
+                        if *sym == '=' {
+                            ch.next();
+                            result.push(Expression::BoolOp("==".to_owned()));
+                        } else {
+                            result.push(Expression::Equal);
+                        }
+                    }
+                }
                 '*' => result.push(Expression::Operator(c)),
                 '+' => result.push(Expression::Operator(c)),
                 '-' => result.push(Expression::Operator(c)),
                 '/' => result.push(Expression::Operator(c)),
                 ';' => result.push(Expression::Semicolon),
+                '!' => {
+                    if let Some(sym) = ch.peek() {
+                        if *sym == '=' {
+                            ch.next();
+                            result.push(Expression::BoolOp("!=".to_owned()));
+                        } else {
+                            //if we need other operators to do with the bang they would go here
+                        }
+                    }
+                }
                 '#' => {
                     current_state = State::Comment;
                 }
