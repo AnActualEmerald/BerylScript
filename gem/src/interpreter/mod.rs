@@ -39,6 +39,7 @@ struct StackFrame {
 struct Runtime {
     // tree: ExprNode,
     // stack: Vec<StackFrame>,
+    heap: HashMap<String, Value>,
     returning: bool,
 }
 
@@ -46,6 +47,7 @@ pub fn run(tree: ExprNode) {
     let mut r = Runtime {
         // tree: tree.clone(),
         // stack: vec![],
+        heap: HashMap::new(),
         returning: false,
     };
     // r.find_global_vars();
@@ -91,7 +93,7 @@ impl Runtime {
             ExprNode::NumLiteral(n) => res = Value::Float(**n),
             ExprNode::BoolLiteral(b) => res = Value::EmBool(*b),
             ExprNode::Name(n) => res = frame.get_var_copy(n),
-            ExprNode::Func(n, p, b) => res = self.def_func(n, p, b, frame),
+            ExprNode::Func(n, p, b) => res = self.def_func(n, p, b), //don't need the stackframe here because functions are stored on the heap
             ExprNode::Statement(e) => res = self.walk_tree(&**e, frame),
             ExprNode::Loop(ty, con, block) => res = self.do_loop(&**ty, &**con, &**block, frame),
             _ => res = Value::Null,
@@ -128,13 +130,7 @@ impl Runtime {
         }
     }
 
-    fn def_func(
-        &mut self,
-        name: &Expression,
-        params: &[ExprNode],
-        body: &ExprNode,
-        frame: &mut StackFrame,
-    ) -> Value {
+    fn def_func(&mut self, name: &Expression, params: &[ExprNode], body: &ExprNode) -> Value {
         if let Expression::Ident(n) = name {
             let mut args = vec![];
             params.iter().for_each(|e| {
@@ -143,7 +139,7 @@ impl Runtime {
                 }
             });
             let f = Value::Function(name.clone(), args, body.clone());
-            frame.set_var(n.to_string(), f.clone());
+            self.heap.insert(n.to_owned(), f.clone());
             return f;
         } else {
             println!("Expected identifier, found {:?}", name);
@@ -283,10 +279,7 @@ impl Runtime {
         match name {
             Expression::Key(_) => return self.keyword(name, &param[0], frame),
             Expression::Ident(n) => {
-                let func: Value;
-                {
-                    func = frame.get_var_copy(n);
-                }
+                let func = self.heap[n.as_str()].clone();
                 match &func {
                     Value::Function(_, params, body) => {
                         if params.len() != param.len() {
@@ -297,25 +290,30 @@ impl Runtime {
                                 param.len()
                             );
                         } else {
+                            let mut func_frame = StackFrame {
+                                stack: HashMap::new(),
+                            };
                             for (i, e) in param.iter().enumerate() {
                                 if let Value::Name(arg) = &params[i] {
                                     let val = self.walk_tree(&e, frame);
                                     match val {
                                         Value::Name(n) => {
                                             let tmp = frame.get_var(&n).clone();
-                                            frame.set_var(arg.to_string(), tmp);
+                                            func_frame.set_var(arg.to_string(), tmp);
                                             //I'd really like to not have to copy here
                                         }
-                                        _ => frame.set_var(arg.to_string(), val),
+                                        _ => func_frame.set_var(arg.to_string(), val),
                                     }
                                 }
                             }
-                            let ret = self.walk_tree(&body, frame);
-                            params.iter().for_each(|e| {
-                                if let Value::Name(n) = e {
-                                    frame.free_var(n)
-                                }
-                            });
+                            let ret = self.walk_tree(&body, &mut func_frame);
+                            //this shouldn't be necessary since Rust will destroy the old
+                            //stack frame anyways when it goes out of  scope
+                            // params.iter().for_each(|e| {
+                            //     if let Value::Name(n) = e {
+                            //         frame.free_var(n)
+                            //     }
+                            // });
 
                             return ret;
                         }
@@ -355,9 +353,10 @@ impl StackFrame {
         }
     }
 
-    fn free_var(&mut self, name: &str) {
-        if self.stack.contains_key(name) {
-            self.stack.remove(name);
-        }
-    }
+    //leaving this here for now in case I need it in the future
+    // fn free_var(&mut self, name: &str) {
+    //     if self.stack.contains_key(name) {
+    //         self.stack.remove(name);
+    //     }
+    // }
 }
