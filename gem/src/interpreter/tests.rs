@@ -37,3 +37,31 @@ fn assign_vars() {
     r.walk_tree(&op, &mut stack);
     assert_eq!(stack.get_var(&"test".to_owned()), &expected);
 }
+
+#[test]
+fn looping() {
+    let ty = String::from("while");
+    let condition = ExprNode::Operation(
+        Box::new(Expression::BoolOp("<".to_owned())),
+        Box::new(ExprNode::Name(Box::new("i".to_owned()))),
+        Box::new(ExprNode::NumLiteral(Box::new(10 as f32))),
+    );
+    let block = ExprNode::Block(vec![ExprNode::Operation(
+        Box::new(Expression::Equal),
+        Box::new(ExprNode::Name(Box::new("i".to_owned()))),
+        Box::new(ExprNode::Operation(
+            Box::new(Expression::Operator('+')),
+            Box::new(ExprNode::Name(Box::new("i".to_owned()))),
+            Box::new(ExprNode::NumLiteral(Box::new(1.0 as f32))),
+        )),
+    )]);
+    // let loop_test = ExprNode::Loop(Box::new(ty), Box::new(condition), Box::new(block));
+    let mut r = Runtime { returning: false };
+    let mut stack = StackFrame {
+        stack: HashMap::new(),
+    };
+    stack.set_var(String::from("i"), Value::Float(0.0 as f32));
+    r.do_loop(&ty, &condition, &block, &mut stack);
+
+    assert_eq!(*stack.get_var("i"), Value::Float(10.0));
+}

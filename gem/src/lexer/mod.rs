@@ -11,7 +11,7 @@ use std::str;
 // Enums are more idomatic and make the resulting Vec much easier to understand
 // I may need more types to make things easier to work with but for now I think
 // this should suffice
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Expression {
     Ident(String),
     Number(f32),
@@ -49,6 +49,12 @@ pub fn tokenize(data: &str) -> Vec<Expression> {
     let mut ch = data.chars().peekable();
 
     while let Some(c) = ch.next() {
+        // println!(
+        //     "Current char: {}\nNext char: {}\n Current token: {}",
+        //     c,
+        //     ch.peek().unwrap_or(&'?'),
+        //     tok
+        // );
         match current_state {
             State::Comment => {
                 if c == '\n' {
@@ -67,9 +73,12 @@ pub fn tokenize(data: &str) -> Vec<Expression> {
             }
             State::EmNumber => {
                 if let Some(s) = ch.peek() {
-                    if c.is_whitespace() || valid_symb.is_match(&s.to_string()) {
+                    if c.is_whitespace()
+                        || valid_symb.is_match(&s.to_string())
+                        || valid_symb.is_match(&c.to_string())
+                    {
                         current_state = State::Nothing;
-                        if !c.is_whitespace() {
+                        if !c.is_whitespace() && !valid_symb.is_match(&c.to_string()) {
                             //need this because of the peek, the current char
                             //could be part of the thing we're accumulating
                             tok.push(c);
@@ -86,9 +95,14 @@ pub fn tokenize(data: &str) -> Vec<Expression> {
             }
             State::EmName => {
                 if let Some(s) = ch.peek() {
-                    if c.is_whitespace() || valid_symb.is_match(&s.to_string()) {
+                    if c.is_whitespace()
+                        //next char
+                        || valid_symb.is_match(&s.to_string())
+                    //current char
+                    || valid_symb.is_match(&c.to_string())
+                    {
                         current_state = State::Nothing;
-                        if !c.is_whitespace() {
+                        if !valid_symb.is_match(&c.to_string()) && !c.is_whitespace() {
                             //need this because of the peek, the current char
                             //could be part of the thing we're accumulating
                             tok.push(c);
@@ -96,27 +110,26 @@ pub fn tokenize(data: &str) -> Vec<Expression> {
                         match tok.as_str() {
                             "fn" => {
                                 result.push(Expression::Key(tok.to_string()));
-
                                 tok.clear();
                             }
                             "print" => {
                                 result.push(Expression::Key(tok.to_string()));
-
                                 tok.clear();
                             }
                             "return" => {
                                 result.push(Expression::Key(tok.to_string()));
-
                                 tok.clear();
                             }
                             "true" => {
                                 result.push(Expression::Key(tok.to_string()));
-
                                 tok.clear();
                             }
                             "false" => {
                                 result.push(Expression::Key(tok.to_string()));
-
+                                tok.clear();
+                            }
+                            "while" => {
+                                result.push(Expression::Key(tok.to_string()));
                                 tok.clear();
                             }
                             _ => {
@@ -161,6 +174,26 @@ pub fn tokenize(data: &str) -> Vec<Expression> {
                             result.push(Expression::BoolOp("!=".to_owned()));
                         } else {
                             //if we need other operators to do with the bang they would go here
+                        }
+                    }
+                }
+                '<' => {
+                    if let Some(sym) = ch.peek() {
+                        if *sym == '=' {
+                            ch.next();
+                            result.push(Expression::BoolOp("<=".to_owned()));
+                        } else {
+                            result.push(Expression::BoolOp("<".to_owned()));
+                        }
+                    }
+                }
+                '>' => {
+                    if let Some(sym) = ch.peek() {
+                        if *sym == '=' {
+                            ch.next();
+                            result.push(Expression::BoolOp(">=".to_owned()));
+                        } else {
+                            result.push(Expression::BoolOp(">".to_owned()));
                         }
                     }
                 }

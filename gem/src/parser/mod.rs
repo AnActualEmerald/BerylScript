@@ -9,7 +9,7 @@ use std::slice::Iter;
 
 //making the nodes hold the actual values instead of the Expressions might be worth it to make
 //interpreting easier
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, PartialOrd)]
 pub enum ExprNode {
     Operation(Box<Expression>, Box<ExprNode>, Box<ExprNode>), //Operator, Left side, Right side
     StrLiteral(Box<String>),
@@ -19,6 +19,7 @@ pub enum ExprNode {
     Call(Box<Expression>, Vec<ExprNode>), //name, args
     Block(Vec<ExprNode>),
     Func(Box<Expression>, Vec<ExprNode>, Box<ExprNode>), //Name, params, function body
+    Loop(Box<String>, Box<ExprNode>, Box<ExprNode>),     //loop keyword, condition, block
     Statement(Box<ExprNode>),
     ReturnVal(Box<ExprNode>),
     Illegal(Option<Expression>),
@@ -67,6 +68,11 @@ fn key_word(
         "return" => ExprNode::ReturnVal(Box::new(expr(iter, cur))),
         "true" => ExprNode::BoolLiteral(true),
         "false" => ExprNode::BoolLiteral(false),
+        "while" => ExprNode::Loop(
+            Box::new("while".to_string()),
+            Box::new(expr(iter, cur)),
+            Box::new(expr(iter, cur)),
+        ),
         _ => panic!("Unknown keyword {}", word),
     }
 }
@@ -171,6 +177,9 @@ fn expr(iter: &mut Peekable<Iter<'_, Expression>>, cur: Option<&Expression>) -> 
                     let tmp = iter.next();
                     expr(iter, tmp)
                 }
+            }
+            Expression::Lbrace => {
+                node = make_block(iter);
             }
             _ => {}
         }
