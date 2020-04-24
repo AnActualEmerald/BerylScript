@@ -44,7 +44,7 @@ pub fn tokenize(data: &str) -> Vec<Expression> {
 
     let valid_chars = Regex::new(r"\D+[[:word:]]*").unwrap();
     let valid_num = Regex::new(r"\d*").unwrap();
-    let valid_symb = Regex::new(r"[\{\}\(\)=;\*\+\-/#!]").unwrap();
+    let valid_symb = Regex::new(r"[\{\}\(\)=;\*\+\-/#!,]").unwrap();
 
     let mut ch = data.chars().peekable();
 
@@ -131,6 +131,7 @@ pub fn tokenize(data: &str) -> Vec<Expression> {
                 }
             }
             State::Nothing => match c {
+                ',' => {}
                 '"' => {
                     current_state = State::EmString;
                     tok.clear();
