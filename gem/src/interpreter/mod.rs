@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::process;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 enum Value {
     Null,
     Float(f32),
@@ -90,14 +90,42 @@ impl Runtime {
             ExprNode::StrLiteral(s) => res = Value::EmString(*s.clone()),
             ExprNode::NumLiteral(n) => res = Value::Float(**n),
             ExprNode::BoolLiteral(b) => res = Value::EmBool(*b),
-            ExprNode::Name(n) => res = Value::Name(*n.clone()),
+            ExprNode::Name(n) => res = frame.get_var_copy(n),
             ExprNode::Func(n, p, b) => res = self.def_func(n, p, b, frame),
             ExprNode::Statement(e) => res = self.walk_tree(&**e, frame),
+            ExprNode::Loop(ty, con, block) => res = self.do_loop(&**ty, &**con, &**block, frame),
             _ => res = Value::Null,
         }
         self.returning = false;
         res
         // Value::Null
+    }
+
+    fn do_loop(
+        &mut self,
+        ty: &str,
+        condition: &ExprNode,
+        block: &ExprNode,
+        frame: &mut StackFrame,
+    ) -> Value {
+        match ty {
+            "while" => {
+                let mut ret = Value::Null;
+                // println!("Loop condition: {:?}\nBlock to run: {:?}", condition, block);
+                // println!(
+                //     "Condition is currently: {:?}",
+                //     self.walk_tree(&condition, frame)
+                // );
+                while self.walk_tree(&condition, frame) == Value::EmBool(true) {
+                    ret = self.walk_tree(&block, frame);
+                    if self.returning {
+                        break;
+                    }
+                }
+                ret
+            }
+            _ => Value::Null,
+        }
     }
 
     fn def_func(
@@ -109,9 +137,11 @@ impl Runtime {
     ) -> Value {
         if let Expression::Ident(n) = name {
             let mut args = vec![];
-            for e in params.iter() {
-                args.push(self.walk_tree(e, frame));
-            }
+            params.iter().for_each(|e| {
+                if let ExprNode::Name(n) = e {
+                    args.push(Value::Name(n.to_string()));
+                }
+            });
             let f = Value::Function(name.clone(), args, body.clone());
             frame.set_var(n.to_string(), f.clone());
             return f;
@@ -130,13 +160,12 @@ impl Runtime {
     ) -> Value {
         match opr {
             Expression::Equal => {
-                let tmp = self.walk_tree(&left, frame);
-                if let Value::Name(n) = tmp {
+                if let ExprNode::Name(n) = left {
                     let v = self.walk_tree(&right, frame);
-                    frame.set_var(n, v);
+                    frame.set_var(n.to_string(), v);
                     return Value::Null;
                 } else {
-                    println!("Expected name, found {:?}", tmp);
+                    println!("Expected name, found {:?}", left);
                     process::exit(-1);
                 }
             }
@@ -184,10 +213,14 @@ impl Runtime {
             Expression::BoolOp(op) => {
                 let l_p = self.walk_tree(&left, frame);
                 let r_p = self.walk_tree(&right, frame);
-
+                // println!("{} {} {}", l_p, op, r_p);
                 match op.as_str() {
                     "==" => return Value::EmBool(l_p == r_p),
                     "!=" => return Value::EmBool(l_p != r_p),
+                    ">=" => return Value::EmBool(l_p >= r_p),
+                    "<=" => return Value::EmBool(l_p <= r_p),
+                    "<" => return Value::EmBool(l_p < r_p),
+                    ">" => return Value::EmBool(l_p > r_p),
                     _ => {
                         println!("Invalid Operator: {}", op);
                         process::exit(-1);
