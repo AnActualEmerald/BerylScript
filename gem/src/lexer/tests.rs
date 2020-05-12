@@ -1,4 +1,5 @@
-use crate::lexer::{tokenize, Expression};
+use crate::lexer;
+use crate::lexer::Expression;
 
 #[test]
 fn token_generation() {
@@ -20,5 +21,5 @@ fn token_generation() {
         Expression::EOF,
     ];
 
-    assert_eq!(expected, tokenize(dummy));
+    assert_eq!(expected, lexer::run(dummy));
 }

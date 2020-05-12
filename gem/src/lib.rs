@@ -9,9 +9,9 @@ mod bench;
 
 pub fn run(data: String) {
     // println!("Got data: {}", data);
-    let tokens = lexer::tokenize(&data);
+    let tokens = lexer::run(&data);
     println!("Generated tokens: {:?}", tokens);
     let ast = parser::parse(tokens);
-    println!("Generated ast: {:?}", ast);
+    // println!("Generated ast: {:?}", ast);
     interpreter::run(ast);
 }
