@@ -11,6 +11,8 @@ fn main() {
   }
 
   print i;
+  print "This will now print the number two";
+  print returns_2();
 }
 
 fn exponent(base, power){
@@ -21,4 +23,8 @@ fn exponent(base, power){
     i = i + 1;
   }
   return res;
+}
+
+fn returns_2() {
+  return 1 + 1;
 }

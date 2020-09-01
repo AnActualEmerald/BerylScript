@@ -156,7 +156,7 @@ impl Lexer {
         let result: Option<Expression>;
         if c.is_whitespace() || self.valid_symb.is_match(&c.to_string()) {
             self.current_state = State::Nothing;
-            if c.is_alphabetic() && !c.is_whitespace() {
+            if (c.is_alphabetic()) && !c.is_whitespace() {
                 //current char could be part of the thing we're accumulating
                 self.token.push(c);
             }

@@ -58,6 +58,7 @@ pub fn run(tree: ExprNode) {
     // println!("{:?}", glob_frame.stack);
 }
 
+// Basically *is* the interpreter, walks throught the AST and executes the nodes as needed
 impl Runtime {
     fn walk_tree(&mut self, node: &ExprNode, frame: &mut StackFrame) -> Value {
         // println!(
@@ -73,6 +74,9 @@ impl Runtime {
                 let mut ret = Value::Null;
                 for e in v.iter() {
                     match e {
+                        /*When we run into a ReturnVal, it needs special treatment so we know to stop executing the
+                         *current block once we get whatever the value is
+                         **/
                         ExprNode::ReturnVal(v) => {
                             ret = self.walk_tree(v, frame);
                             break;
@@ -82,6 +86,8 @@ impl Runtime {
                         }
                     }
                     if self.returning {
+                        //if the returning flag has been set, then break out of the loop and stop executing this block
+                        //This is for return statements that don't return anything
                         break;
                     }
                 }
@@ -98,9 +104,9 @@ impl Runtime {
             ExprNode::Loop(ty, con, block) => res = self.do_loop(&**ty, &**con, &**block, frame),
             _ => res = Value::Null,
         }
+        //Reset the returning flag, since we're returning whatever value we got anyways
         self.returning = false;
         res
-        // Value::Null
     }
 
     fn do_loop(
@@ -129,7 +135,7 @@ impl Runtime {
             _ => Value::Null,
         }
     }
-
+    /**Define a function and save it as a variable in the heap */
     fn def_func(&mut self, name: &Expression, params: &[ExprNode], body: &ExprNode) -> Value {
         if let Expression::Ident(n) = name {
             let mut args = vec![];
@@ -143,7 +149,8 @@ impl Runtime {
             return f;
         } else {
             println!("Expected identifier, found {:?}", name);
-            process::exit(-1); //If we don't get a name for the funciton, we should exit since things will break
+            process::exit(-1);
+            //If we don't get a name for the funciton, we should exit since things will break
         }
     }
 
@@ -275,10 +282,12 @@ impl Runtime {
         Value::Null
     }
 
+    /**\Execute a keyword or function call*/
     fn do_call(&mut self, name: &Expression, param: &[ExprNode], frame: &mut StackFrame) -> Value {
         match name {
             Expression::Key(_) => return self.keyword(name, &param[0], frame),
             Expression::Ident(n) => {
+                //Get the function definition out of the heap and clone it, since we need to borrow self later
                 let func = self.heap[n.as_str()].clone();
                 match &func {
                     Value::Function(_, params, body) => {
@@ -332,6 +341,7 @@ impl Runtime {
     }
 }
 
+/**Keeps track of local variables for functions. Currently only created when a function is called. */
 impl StackFrame {
     fn set_var(&mut self, name: String, v: Value) {
         self.stack.insert(name, v);
