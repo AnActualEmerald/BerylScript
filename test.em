@@ -17,11 +17,19 @@ fn control_flow(){
     print "This was false";
   }
 
-   if(5 != 5){
+  if(5 != 5){
     print "This was true";
   }
   else {
     print "This was false";
+  }
+
+  if (5 != 5) {
+    print "5 doesn't equal 5 I guess";
+  } elif (5 != 6) {
+    print "5 doesn't equal 6";
+  } else {
+    print "Nothing is real";
   }
 
 }

@@ -176,27 +176,15 @@ impl Lexer {
                     result = Some(Expression::Key(self.token.to_string()));
                     self.token.clear();
                 }
-                "true" => {
+                "true" | "false" => {
                     result = Some(Expression::Key(self.token.to_string()));
                     self.token.clear();
                 }
-                "false" => {
+                "while" | "for" => {
                     result = Some(Expression::Key(self.token.to_string()));
                     self.token.clear();
                 }
-                "while" => {
-                    result = Some(Expression::Key(self.token.to_string()));
-                    self.token.clear();
-                }
-                "for" => {
-                    result = Some(Expression::Key(self.token.to_string()));
-                    self.token.clear();
-                }
-                "if" => {
-                    result = Some(Expression::Key(self.token.to_string()));
-                    self.token.clear();
-                }
-                "else" => {
+                "if" | "else" | "elif" => {
                     result = Some(Expression::Key(self.token.to_string()));
                     self.token.clear();
                 }
