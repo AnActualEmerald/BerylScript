@@ -6,7 +6,7 @@ use test::Bencher;
 #[bench]
 fn lexing_bench(b: &mut Bencher) {
     let dummy = "fn test(){ print \"Hello, World!\"; }";
-    b.iter(|| lexer::tokenize(dummy));
+    b.iter(|| lexer::run(dummy));
 }
 
 #[bench]
