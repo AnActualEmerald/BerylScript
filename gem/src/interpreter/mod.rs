@@ -102,6 +102,7 @@ impl Runtime {
             ExprNode::Func(n, p, b) => res = self.def_func(n, p, b), //don't need the stackframe here because functions are stored on the heap
             ExprNode::Statement(e) => res = self.walk_tree(&**e, frame),
             ExprNode::Loop(ty, con, block) => res = self.do_loop(&**ty, &**con, &**block, frame),
+            ExprNode::IfStatement(con, body, branch) => res = self.do_if(con, body, branch, frame),
             _ => res = Value::Null,
         }
         //Reset the returning flag, since we're returning whatever value we got anyways
@@ -311,7 +312,7 @@ impl Runtime {
         Value::Null
     }
 
-    /**\Execute a keyword or function call*/
+    /**Execute a keyword or function call*/
     fn do_call(&mut self, name: &Expression, param: &[ExprNode], frame: &mut StackFrame) -> Value {
         match name {
             Expression::Key(_) => return self.keyword(name, &param[0], frame),
@@ -365,6 +366,24 @@ impl Runtime {
             _ => {
                 println!("Expected keyword or identifier, found {:?}", name);
                 process::exit(-1);
+            }
+        }
+    }
+
+    fn do_if(
+        &mut self,
+        condition: &ExprNode,
+        body: &ExprNode,
+        branches: &ExprNode,
+        frame: &mut StackFrame,
+    ) -> Value {
+        if self.walk_tree(condition, frame) == Value::EmBool(true) {
+            self.walk_tree(body, frame)
+        } else {
+            if let ExprNode::IfStatement(con, body, branch) = branches {
+                self.do_if(con, body, branch, frame)
+            } else {
+                self.walk_tree(branches, frame)
             }
         }
     }

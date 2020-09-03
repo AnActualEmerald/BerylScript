@@ -23,6 +23,8 @@ pub enum ExprNode {
     ForLoopDec(Box<ExprNode>, Box<ExprNode>, Box<ExprNode>), //declaration, condition, incrementation
     Statement(Box<ExprNode>),
     ReturnVal(Box<ExprNode>),
+    IfStatement(Box<ExprNode>, Box<ExprNode>, Box<ExprNode>), //condition, body, branch
+    ElseStatement(Box<ExprNode>),                             //body
     Illegal(Option<Expression>),
     EOF,
 }
@@ -79,6 +81,7 @@ fn key_word(
             Box::new(make_for_loop(iter, cur)),
             Box::new(expr(iter, cur)),
         ),
+        "if" => make_if(iter),
         _ => panic!("Unknown keyword {}", word),
     }
 }
@@ -259,5 +262,31 @@ fn make_for_loop(iter: &mut Peekable<Iter<'_, Expression>>, cur: Option<&Express
         )
     } else {
         panic!("Expected \"(\", found {:?}", iter.next());
+    }
+}
+
+fn make_if(iter: &mut Peekable<Iter<'_, Expression>>) -> ExprNode {
+    if let Some(Expression::Lparen) = iter.peek() {
+        let condition = expr(iter, None); //get the conditional statement for the if
+        let block = expr(iter, None); //get the body of the if
+
+        let mut branch = ExprNode::Illegal(None);
+        if let Some(Expression::Key(w)) = iter.peek() {
+            match w.as_str() {
+                "else" => {
+                    iter.next(); //skip the else expression
+                    branch = expr(iter, None); //push on the body of the else statement
+                }
+                "elif" => {
+                    iter.next();
+                    branch = make_if(iter);
+                }
+                _ => {}
+            }
+        }
+
+        ExprNode::IfStatement(Box::new(condition), Box::new(block), Box::new(branch))
+    } else {
+        panic!("Expected \"(\" found {:?}", iter.next());
     }
 }

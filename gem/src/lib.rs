@@ -12,6 +12,6 @@ pub fn run(data: String) {
     let tokens = lexer::run(&data);
     // println!("Generated tokens: {:?}", tokens);
     let ast = parser::parse(tokens);
-    // println!("Generated ast: {:?}", ast);
+    println!("Generated ast: {:?}", ast);
     interpreter::run(ast);
 }
