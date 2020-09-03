@@ -63,6 +63,9 @@ impl Lexer {
         }
     }
 
+    pub fn run(data: &str) -> Vec<Expression> {
+        Lexer::new().tokenize(data)
+    }
     pub fn tokenize(&mut self, data: &str) -> Vec<Expression> {
         let mut result = vec![];
 
@@ -195,55 +198,6 @@ impl Lexer {
                     self.token.clear();
                 }
             }
-            State::EmName => {
-                if let Some(s) = ch.peek() {
-                    if c.is_whitespace()
-                        //next char
-                        || valid_symb.is_match(&s.to_string())
-                    //current char
-                    || valid_symb.is_match(&c.to_string())
-                    {
-                        current_state = State::Nothing;
-                        if !valid_symb.is_match(&c.to_string()) && !c.is_whitespace() {
-                            //need this because of the peek, the current char
-                            //could be part of the thing we're accumulating
-                            tok.push(c);
-                        }
-                        match tok.as_str() {
-                            "fn" => {
-                                result.push(Expression::Key(tok.to_string()));
-                                tok.clear();
-                            }
-                            "print" => {
-                                result.push(Expression::Key(tok.to_string()));
-                                tok.clear();
-                            }
-                            "return" => {
-                                result.push(Expression::Key(tok.to_string()));
-                                tok.clear();
-                            }
-                            "true" => {
-                                result.push(Expression::Key(tok.to_string()));
-                                tok.clear();
-                            }
-                            "false" => {
-                                result.push(Expression::Key(tok.to_string()));
-                                tok.clear();
-                            }
-                            "while" => {
-                                result.push(Expression::Key(tok.to_string()));
-                                tok.clear();
-                            }
-                            "for" => {
-                                result.push(Expression::Key(tok.to_string()));
-                                tok.clear();
-                            }
-                            _ => {
-                                result.push(Expression::Ident(tok.to_string()));
-
-                                tok.clear();
-                            }
-                        }
             self.check = true;
         } else {
             self.token.push(c);
