@@ -1,4 +1,12 @@
 fn main() {
+  i = 5;
+  for(i < 10; i = i + 1){
+    print "hey there";
+    print i;
+  }
+
+  print "Loop's done";
+
   i = 0;
   while i < 10 {
     print "Hello, world! The year is 2020!";

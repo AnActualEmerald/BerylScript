@@ -63,6 +63,9 @@ impl Lexer {
         }
     }
 
+    pub fn run(data: &str) -> Vec<Expression> {
+        Lexer::new().tokenize(data)
+    }
     pub fn tokenize(&mut self, data: &str) -> Vec<Expression> {
         let mut result = vec![];
 
@@ -182,6 +185,10 @@ impl Lexer {
                     self.token.clear();
                 }
                 "while" => {
+                    result = Some(Expression::Key(self.token.to_string()));
+                    self.token.clear();
+                }
+                "for" => {
                     result = Some(Expression::Key(self.token.to_string()));
                     self.token.clear();
                 }

@@ -132,6 +132,35 @@ impl Runtime {
                 }
                 ret
             }
+            "for" => {
+                let mut ret = Value::Null;
+                if let ExprNode::ForLoopDec(dec, con, inc) = condition {
+                    if let ExprNode::Illegal(_) = **dec {
+                        while self.walk_tree(&con, frame) == Value::EmBool(true) {
+                            //walk the tree to execute the loop body
+                            ret = self.walk_tree(&block, frame);
+                            if self.returning {
+                                break;
+                            }
+                            //perform the incrementation
+                            self.walk_tree(&inc, frame);
+                        }
+                    } else {
+                        self.walk_tree(&dec, frame);
+                        while self.walk_tree(&con, frame) == Value::EmBool(true) {
+                            //walk the tree to execute the loop body
+                            ret = self.walk_tree(&block, frame);
+                            if self.returning {
+                                break;
+                            }
+                            //perform the incrementation
+                            self.walk_tree(&inc, frame);
+                        }
+                    }
+                }
+
+                ret
+            }
             _ => Value::Null,
         }
     }
