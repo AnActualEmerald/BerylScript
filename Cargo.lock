@@ -52,13 +52,13 @@ dependencies = [
 
 [[package]]
 name = "gem"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "regex",
 ]
 
 [[package]]
-name = "gem-cli"
+name = "gem_cli"
 version = "0.0.1"
 dependencies = [
  "clap",

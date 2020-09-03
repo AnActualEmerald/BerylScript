@@ -43,7 +43,11 @@ fn make_block(iter: &mut Peekable<Iter<'_, Expression>>) -> ExprNode {
 
     while let Some(t) = iter.next() {
         match t {
-            Expression::EOF | Expression::Rbrace => break,
+            Expression::EOF => break,
+            Expression::Rbrace => {
+                // iter.next();
+                break;
+            }
             Expression::Key(s) => {
                 root.push(key_word(iter, Some(t), &s));
             }
@@ -71,15 +75,17 @@ fn key_word(
         "return" => ExprNode::ReturnVal(Box::new(expr(iter, cur))),
         "true" => ExprNode::BoolLiteral(true),
         "false" => ExprNode::BoolLiteral(false),
-        "while" => ExprNode::Loop(
-            Box::new("while".to_string()),
-            Box::new(expr(iter, cur)),
-            Box::new(expr(iter, cur)),
-        ),
+        "while" => {
+            let con = expr(iter, cur);
+            iter.next(); // have to skip the closing paren
+            iter.next(); // and the opening brace
+            let body = make_block(iter);
+            ExprNode::Loop(Box::new("while".to_string()), Box::new(con), Box::new(body))
+        }
         "for" => ExprNode::Loop(
             Box::new("for".to_string()),
             Box::new(make_for_loop(iter, cur)),
-            Box::new(expr(iter, cur)),
+            Box::new(make_block(iter)),
         ),
         "if" => make_if(iter),
         _ => panic!("Unknown keyword {}", word),
@@ -233,49 +239,61 @@ fn find_params(
 }
 
 fn make_for_loop(iter: &mut Peekable<Iter<'_, Expression>>, cur: Option<&Expression>) -> ExprNode {
-    if let Some(Expression::Lparen) = iter.peek() {
-        iter.next(); //skip the lparen after the "for" keyword
-        let mut name = iter.next(); //grab the next expression to pass it in as cur
-        let dec = expr(iter, name); //get the declaration expression (i = 0)
-        if let ExprNode::Operation(op, _, _) = &dec {
-            //double check to make sure this was an assignment op
-            if **op == Expression::Equal {
-                let condition = expr(iter, cur); //get the condition expression (i < 10)
-                iter.next(); //skip the last semicolon
-                name = iter.next(); //get the name again to use as cur
-                let increment = expr(iter, name); //get the incrementation expression (i = i + 1)
-                return ExprNode::ForLoopDec(
-                    Box::new(dec),
-                    Box::new(condition),
-                    Box::new(increment),
-                );
+    match iter.peek() {
+        Some(Expression::Lparen) => {
+            iter.next(); //skip the lparen after the "for" keyword
+            let mut name = iter.next(); //grab the next expression to pass it in as cur
+            let dec = expr(iter, name); //get the declaration expression (i = 0)
+            if let ExprNode::Operation(op, _, _) = &dec {
+                //double check to make sure this was an assignment op
+                if **op == Expression::Equal {
+                    iter.next(); //skip the semicolon afterwards
+                    let condition = expr(iter, cur); //get the condition expression (i < 10)
+                    iter.next(); //skip the last semicolon
+                    name = iter.next(); //get the name again to use as cur
+                    let increment = expr(iter, name); //get the incrementation expression (i = i + 1)
+                    iter.next();
+                    iter.next(); //skipping the closing paren and opening braceso that the body can be parsed properly
+                    return ExprNode::ForLoopDec(
+                        Box::new(dec),
+                        Box::new(condition),
+                        Box::new(increment),
+                    );
+                }
             }
+            //for loops don't need to have an assinment op, so that needs to be supported
+            iter.next(); //skip the last semicolon
+            name = iter.next(); //get the name again to use as cur
+            let increment = expr(iter, name); //get the incrementation expression (i = i + 1)
+            iter.next();
+            iter.next(); //skipping the closing paren and opening braceso that the body can be parsed properly
+            ExprNode::ForLoopDec(
+                Box::new(ExprNode::Illegal(None)),
+                Box::new(dec),
+                Box::new(increment),
+            )
         }
-        //for loops don't need to have an assinment op, so that needs to be supported
-        iter.next(); //skip the last semicolon
-        name = iter.next(); //get the name again to use as cur
-        let increment = expr(iter, name); //get the incrementation expression (i = i + 1)
-        ExprNode::ForLoopDec(
-            Box::new(ExprNode::Illegal(None)),
-            Box::new(dec),
-            Box::new(increment),
-        )
-    } else {
-        panic!("Expected \"(\", found {:?}", iter.next());
+        Some(_) | None => {
+            panic!("Expected \"(\", found {:?}", iter.next());
+        }
     }
 }
 
 fn make_if(iter: &mut Peekable<Iter<'_, Expression>>) -> ExprNode {
     if let Some(Expression::Lparen) = iter.peek() {
         let condition = expr(iter, None); //get the conditional statement for the if
-        let block = expr(iter, None); //get the body of the if
+        iter.next(); //skip the closing paren
+        iter.next(); //skip the opening brace
+        let block = make_block(iter); //get the body of the if
 
         let mut branch = ExprNode::Illegal(None);
+
         if let Some(Expression::Key(w)) = iter.peek() {
             match w.as_str() {
                 "else" => {
                     iter.next(); //skip the else expression
-                    branch = expr(iter, None); //push on the body of the else statement
+                    iter.next(); //skip the opening brace
+                    branch = make_block(iter); //push on the body of the else statement
                 }
                 "elif" => {
                     iter.next();
@@ -284,7 +302,6 @@ fn make_if(iter: &mut Peekable<Iter<'_, Expression>>) -> ExprNode {
                 _ => {}
             }
         }
-
         ExprNode::IfStatement(Box::new(condition), Box::new(block), Box::new(branch))
     } else {
         panic!("Expected \"(\" found {:?}", iter.next());

@@ -1,7 +1,7 @@
 fn main() {
-  i = 5;
+  i = 0;
   for(i < 10; i = i + 1){
-    print "hey there";
+    print "Hey there";
     print i;
   }
 
@@ -17,5 +17,11 @@ fn control_flow(){
     print "This was false";
   }
 
+   if(5 != 5){
+    print "This was true";
+  }
+  else {
+    print "This was false";
+  }
 
 }
