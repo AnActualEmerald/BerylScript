@@ -20,6 +20,7 @@ pub enum ExprNode {
     Block(Vec<ExprNode>),
     Func(Box<Expression>, Vec<ExprNode>, Box<ExprNode>), //Name, params, function body
     Loop(Box<String>, Box<ExprNode>, Box<ExprNode>),     //loop keyword, condition, block
+    ForLoopDec(Box<ExprNode>, Box<ExprNode>, Box<ExprNode>), //declaration, condition, incrementation
     Statement(Box<ExprNode>),
     ReturnVal(Box<ExprNode>),
     Illegal(Option<Expression>),
@@ -71,6 +72,11 @@ fn key_word(
         "while" => ExprNode::Loop(
             Box::new("while".to_string()),
             Box::new(expr(iter, cur)),
+            Box::new(expr(iter, cur)),
+        ),
+        "for" => ExprNode::Loop(
+            Box::new("for".to_string()),
+            Box::new(make_for_loop(iter, cur)),
             Box::new(expr(iter, cur)),
         ),
         _ => panic!("Unknown keyword {}", word),
@@ -221,4 +227,37 @@ fn find_params(
         }
     }
     params
+}
+
+fn make_for_loop(iter: &mut Peekable<Iter<'_, Expression>>, cur: Option<&Expression>) -> ExprNode {
+    if let Some(Expression::Lparen) = iter.peek() {
+        iter.next(); //skip the lparen after the "for" keyword
+        let mut name = iter.next(); //grab the next expression to pass it in as cur
+        let dec = expr(iter, name); //get the declaration expression (i = 0)
+        if let ExprNode::Operation(op, _, _) = &dec {
+            //double check to make sure this was an assignment op
+            if **op == Expression::Equal {
+                let condition = expr(iter, cur); //get the condition expression (i < 10)
+                iter.next(); //skip the last semicolon
+                name = iter.next(); //get the name again to use as cur
+                let increment = expr(iter, name); //get the incrementation expression (i = i + 1)
+                return ExprNode::ForLoopDec(
+                    Box::new(dec),
+                    Box::new(condition),
+                    Box::new(increment),
+                );
+            }
+        }
+        //for loops don't need to have an assinment op, so that needs to be supported
+        iter.next(); //skip the last semicolon
+        name = iter.next(); //get the name again to use as cur
+        let increment = expr(iter, name); //get the incrementation expression (i = i + 1)
+        ExprNode::ForLoopDec(
+            Box::new(ExprNode::Illegal(None)),
+            Box::new(dec),
+            Box::new(increment),
+        )
+    } else {
+        panic!("Expected \"(\", found {:?}", iter.next());
+    }
 }

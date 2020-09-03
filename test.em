@@ -1,8 +1,9 @@
 fn main() {
-  print "Hello, World!";
-  HAHnice();
-}
+  i = 5;
+  for(i < 10; i = i + 1){
+    print "hey there";
+    print i;
+  }
 
-fn nice69() {
-  print "Haha the sex number";
+  print "Loop's done";
 }

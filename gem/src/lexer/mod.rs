@@ -132,6 +132,10 @@ pub fn tokenize(data: &str) -> Vec<Expression> {
                                 result.push(Expression::Key(tok.to_string()));
                                 tok.clear();
                             }
+                            "for" => {
+                                result.push(Expression::Key(tok.to_string()));
+                                tok.clear();
+                            }
                             _ => {
                                 result.push(Expression::Ident(tok.to_string()));
 
