@@ -72,12 +72,12 @@ impl Lexer {
         let mut ch = data.chars().peekable();
 
         while let Some(c) = ch.next() {
-            println!(
-                "Current char: {:?}\nNext char: {:?}\nCurrent token: {}",
-                c,
-                ch.peek().unwrap_or(&'?'),
-                self.token
-            );
+            // println!(
+            //     "Current char: {:?}\nNext char: {:?}\nCurrent token: {}",
+            //     c,
+            //     ch.peek().unwrap_or(&'?'),
+            //     self.token
+            // );
             match self.current_state {
                 State::Comment => {
                     if c == '\n' {
@@ -176,19 +176,15 @@ impl Lexer {
                     result = Some(Expression::Key(self.token.to_string()));
                     self.token.clear();
                 }
-                "true" => {
+                "true" | "false" => {
                     result = Some(Expression::Key(self.token.to_string()));
                     self.token.clear();
                 }
-                "false" => {
+                "while" | "for" => {
                     result = Some(Expression::Key(self.token.to_string()));
                     self.token.clear();
                 }
-                "while" => {
-                    result = Some(Expression::Key(self.token.to_string()));
-                    self.token.clear();
-                }
-                "for" => {
+                "if" | "else" | "elif" => {
                     result = Some(Expression::Key(self.token.to_string()));
                     self.token.clear();
                 }

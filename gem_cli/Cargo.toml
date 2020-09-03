@@ -1,5 +1,5 @@
 [package]
-name = "gem-cli"
+name = "gem_cli"
 version = "0.0.1"
 authors = ["AnActualEmerald <kevinliger13@gmail.com>"]
 edition = "2018"
