@@ -208,7 +208,7 @@ impl Lexer {
         //     c.to_string()
         // );
         match c {
-            ',' | '\t' | ' ' | '\n' => None,
+            ',' | '\t' | ' ' | '\n' | '\r' => None,
             '"' => {
                 self.current_state = State::EmString;
                 self.token.clear();
