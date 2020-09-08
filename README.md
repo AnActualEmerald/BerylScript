@@ -1,4 +1,4 @@
-# EmeraldScript ![Build](https://github.com/AnActualEmerald/EmeraldScript/workflows/Build/badge.svg)
+# EmeraldScript  ![Build](https://github.com/AnActualEmerald/EmeraldScript/workflows/Build/badge.svg)
 
 ### What is EmeraldScript?
 
@@ -24,7 +24,7 @@ This is, obviously, a hello world program. There are a few things to note:
 2. "print" is a keyword, and not a function
 3. The code is in a main method
 
-The first two points will likely change as I get more of the most basic features ironed out and begin to nail down more of the design aspects of the language. The third is something that I want to keep, as I feel like having a main function makes it clear where things will actually start executing (of course, if you look at the way I'm doing this you'll see that anything outside the main function will execute as well).
+The first two points will likely change as I get more of the most basic features ironed out and begin to nail down more of the design aspects of the language. The third is something that I want to keep, as I feel like having a main function makes it clear where things will actually start executing.
 
 If you want to contribute ~~for some reason~~ , run in to some kind of bug, or want to request a feature, feel free to get in touch. Though be warned that I'm not considering this project very high priority or very serious, so I may be slow to respond.
 
