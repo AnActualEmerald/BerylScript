@@ -3,9 +3,8 @@ mod tests;
 
 use super::lexer::Expression;
 use super::parser::ExprNode;
-use std::collections::HashMap;
 use std::fmt;
-use std::process;
+use std::{cell::RefCell, collections::HashMap};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 enum Value {
@@ -39,7 +38,7 @@ pub struct StackFrame {
 pub struct Runtime {
     // tree: ExprNode,
     // stack: Vec<StackFrame>,
-    heap: HashMap<String, Value>,
+    heap: HashMap<String, RefCell<Value>>,
     returning: bool,
 }
 
@@ -200,7 +199,7 @@ impl Runtime {
                 }
             });
             let f = Value::Function(name.clone(), args, body.clone());
-            self.heap.insert(n.to_owned(), f.clone());
+            self.heap.insert(n.to_owned(), RefCell::new(f.clone()));
             Ok(f)
         } else {
             Err(format!("Expected identifier, found {:?}", name))
@@ -344,56 +343,53 @@ impl Runtime {
         match name {
             Expression::Key(_) => return self.keyword(name, &param[0], frame),
             Expression::Ident(n) => {
-                //Get the function definition out of the heap and clone it, since we need to borrow self later
-                let func = self.heap[n.as_str()].clone();
-                match &func {
-                    Value::Function(_, params, body) => {
-                        if params.len() != param.len() {
-                            panic!(
-                                "Expected {} arguments for {}, got {}",
-                                params.len(),
-                                n,
-                                param.len()
-                            );
-                        } else {
-                            let mut func_frame = StackFrame {
-                                stack: HashMap::new(),
-                            };
-                            for (i, e) in param.iter().enumerate() {
-                                if let Value::Name(arg) = &params[i] {
-                                    let val = self.walk_tree(&e, frame)?;
-                                    match val {
-                                        Value::Name(n) => {
-                                            let tmp = frame.get_var(&n).clone();
-                                            func_frame.set_var(arg.to_string(), tmp);
-                                            //I'd really like to not have to copy here
+                if let Some(func) = self.heap.get(n) {
+                    //I'd really like to not have to borrow here
+                    match &*func.clone().borrow() {
+                        Value::Function(_, params, body) => {
+                            if params.len() != param.len() {
+                                panic!(
+                                    "Expected {} arguments for {}, got {}",
+                                    params.len(),
+                                    n,
+                                    param.len()
+                                );
+                            } else {
+                                let mut func_frame = StackFrame {
+                                    stack: HashMap::new(),
+                                };
+                                for (i, e) in param.iter().enumerate() {
+                                    if let Value::Name(arg) = &params[i] {
+                                        let val = self.walk_tree(&e, frame)?;
+                                        match val {
+                                            Value::Name(n) => {
+                                                let tmp = frame.get_var(&n).clone();
+                                                func_frame.set_var(arg.to_string(), tmp);
+                                                //I'd really like to not have to copy here
+                                            }
+                                            _ => func_frame.set_var(arg.to_string(), val),
                                         }
-                                        _ => func_frame.set_var(arg.to_string(), val),
                                     }
                                 }
-                            }
-                            let ret = self.walk_tree(&body, &mut func_frame);
-                            //this shouldn't be necessary since Rust will destroy the old
-                            //stack frame anyways when it goes out of  scope
-                            // params.iter().for_each(|e| {
-                            //     if let Value::Name(n) = e {
-                            //         frame.free_var(n)
-                            //     }
-                            // });
+                                let ret = self.walk_tree(&body, &mut func_frame);
+                                //this shouldn't be necessary since Rust will destroy the old
+                                //stack frame anyways when it goes out of  scope
+                                // params.iter().for_each(|e| {
+                                //     if let Value::Name(n) = e {
+                                //         frame.free_var(n)
+                                //     }
+                                // });
 
-                            return ret;
+                                return ret;
+                            }
                         }
+                        _ => Err(format!("Expected function, found {}", func.borrow())),
                     }
-                    _ => {
-                        println!("Expected function, found {}", func);
-                        process::exit(-1);
-                    }
+                } else {
+                    Err(format!("Couldn't find identifier {}", n))
                 }
             }
-            _ => {
-                println!("Expected keyword or identifier, found {:?}", name);
-                process::exit(-1);
-            }
+            _ => Err(format!("Expected keyword or identifier, found {:?}", name)),
         }
     }
 

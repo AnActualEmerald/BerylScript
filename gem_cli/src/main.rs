@@ -86,7 +86,7 @@ fn repl() -> io::Result<usize> {
     let mut multiline = false;
 
     println!(
-        "Welcome to the EmeraldScript REPL version {}!",
+        "Welcome to the EmeraldScript REPL v{}!",
         env!("CARGO_PKG_VERSION")
     );
     println!("Type exit or stop to leave\n");
