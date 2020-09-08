@@ -14,11 +14,6 @@ fn token_generation() {
         Expression::Word("hello world".to_owned()),
         Expression::Semicolon,
         Expression::Rbrace,
-        Expression::Ident("main".to_owned()), //Exposing the janky way I'm calling the main function
-        Expression::Lparen,
-        Expression::Rparen,
-        Expression::Semicolon,
-        Expression::EOF,
     ];
 
     assert_eq!(expected, lexer::run(dummy));
