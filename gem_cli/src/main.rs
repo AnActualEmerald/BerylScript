@@ -47,10 +47,9 @@ fn main() {
         };
 
         create_examples(&path);
+        return;
     }
-
-    //if there aren't any subcommands we should start a REPL, though that will require modifying how the gem
-    //works as of v0.3
+    
     repl().expect("REPL encountered an issue: ");
 }
 
