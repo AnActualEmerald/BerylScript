@@ -12,7 +12,7 @@ extern crate clap;
 fn main() {
     let matches = clap_app!(app =>
     (name: "Gem CLI")
-    (version: "0.0.2")
+    (version: env!("CARGO_PKG_VERSION"))
     (author: "Emerald <@Emerald#6666>")
     (about: "Runs emerald script programs and other helpful stuff")
     (@subcommand examples =>
@@ -31,8 +31,10 @@ fn main() {
                 panic!("Couldn't read file {}: {}", path, e);
             });
             gem::run(data);
+            return;
         } else {
             println!("Not a valid .em file!");
+            return;
         }
     }
 
@@ -83,7 +85,10 @@ fn repl() -> io::Result<usize> {
     let mut input = String::new();
     let mut multiline = false;
 
-    println!("Welcome to the EmeraldScript REPL!");
+    println!(
+        "Welcome to the EmeraldScript REPL version {}!",
+        env!("CARGO_PKG_VERSION")
+    );
     println!("Type exit or stop to leave\n");
 
     print!(">>> ");
@@ -107,15 +112,16 @@ fn repl() -> io::Result<usize> {
             print!("\t");
             io::stdout().flush().expect("Couldn't flush stdout");
             continue;
-        } else {
-            let ast = parser::parse(lexer::run(format!("{}", input).as_str()));
-            if let Err(e) = repl_run(ast, &mut runtime, &mut glob_frame) {
-                println!("{}", e);
-            }
-            input = String::new();
-            print!(">>> ");
-            io::stdout().flush().expect("Couldn't flush stdout");
         }
+
+        let ast = parser::parse(lexer::run(format!("{}", input).as_str()));
+        if let Err(e) = repl_run(ast, &mut runtime, &mut glob_frame) {
+            println!("{}", e);
+        }
+        input = String::new();
+
+        print!(">>> ");
+        io::stdout().flush().expect("Couldn't flush stdout");
     }
 
     Ok(0)
