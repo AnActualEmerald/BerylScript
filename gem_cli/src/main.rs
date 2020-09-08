@@ -24,10 +24,14 @@ fn main() {
 
     if let Some(sub) = matches.subcommand_matches("run") {
         let path = sub.value_of("PATH").expect("Path should not be NONE");
-        let data = fs::read_to_string(&path).unwrap_or_else(|e| {
-            panic!("Couldn't read file {}: {}", path, e);
-        });
-        gem::run(data);
+        if path.ends_with(".em") {
+            let data = fs::read_to_string(&path).unwrap_or_else(|e| {
+                panic!("Couldn't read file {}: {}", path, e);
+            });
+            gem::run(data);
+        } else {
+            println!("Not a valid .em file!");
+        }
     }
 
     if let Some(sub) = matches.subcommand_matches("examples") {
