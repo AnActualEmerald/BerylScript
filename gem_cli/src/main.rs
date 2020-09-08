@@ -83,7 +83,7 @@ fn repl() -> io::Result<usize> {
     let mut runtime = Runtime::new();
     let mut glob_frame = StackFrame::new();
     let mut input = String::new();
-    let mut multiline = false;
+    let mut multiline = vec![];
 
     println!(
         "Welcome to the EmeraldScript REPL v{}!",
@@ -101,15 +101,17 @@ fn repl() -> io::Result<usize> {
             .expect("Unable to read input");
 
         if input.ends_with("{\n") {
-            multiline = true;
+            multiline.push(true);
         } else if input.ends_with("}\n") {
-            multiline = false;
+            multiline.pop();
         }
 
         if ["exit\n", "stop\n"].contains(&input.as_str()) {
             break;
-        } else if multiline {
-            print!("\t");
+        } else if multiline.contains(&true) {
+            for _ in multiline.iter() {
+                print!("\t");
+            }
             io::stdout().flush().expect("Couldn't flush stdout");
             continue;
         }
