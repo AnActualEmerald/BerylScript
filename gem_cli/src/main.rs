@@ -1,5 +1,7 @@
 use std::env;
 use std::fs;
+use std::io;
+use std::io::prelude::*;
 use std::path::PathBuf;
 
 // use clap::{App, Arg, SubCommand};
@@ -47,6 +49,7 @@ fn main() {
 
     //if there aren't any subcommands we should start a REPL, though that will require modifying how the gem
     //works as of v0.3
+    repl().expect("REPL encountered an issue: ");
 }
 
 fn create_examples(path: &PathBuf) {
@@ -70,4 +73,50 @@ fn create_examples(path: &PathBuf) {
             .expect(format!("Error generating example file {}", expath.display()).as_str());
         count += 1;
     }
+}
+
+fn repl() -> io::Result<usize> {
+    use gem::interpreter::*;
+    use gem::{lexer, parser};
+    let mut runtime = Runtime::new();
+    let mut glob_frame = StackFrame::new();
+    let mut input = String::new();
+    let mut multiline = false;
+
+    println!("Welcome to the EmeraldScript REPL!");
+    println!("Type exit or stop to leave\n");
+
+    print!(">>> ");
+    io::stdout().flush().expect("Couldn't flush stdout");
+
+    //while input isn't "exit" or "stop"
+    loop {
+        io::stdin()
+            .read_line(&mut input)
+            .expect("Unable to read input");
+
+        if input.ends_with("{\n") {
+            multiline = true;
+        } else if input.ends_with("}\n") {
+            multiline = false;
+        }
+
+        if ["exit\n", "stop\n"].contains(&input.as_str()) {
+            break;
+        } else if multiline {
+            print!("\t");
+            io::stdout().flush().expect("Couldn't flush stdout");
+            continue;
+        } else {
+            let ast = parser::parse(lexer::run(format!("{}", input).as_str()));
+            if let Err(e) = repl_run(ast, &mut runtime, &mut glob_frame) {
+                println!("{}", e);
+            }
+            input = String::new();
+            print!(">>> ");
+            io::stdout().flush().expect("Couldn't flush stdout");
+        }
+    }
+
+    Ok(0)
 }

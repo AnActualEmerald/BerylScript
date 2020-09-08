@@ -121,11 +121,11 @@ impl Lexer {
             }
             // println!("Current result: {:?}", result);
         }
-        result.push(Expression::Ident("main".to_owned()));
-        result.push(Expression::Lparen);
-        result.push(Expression::Rparen);
-        result.push(Expression::Semicolon);
-        result.push(Expression::EOF);
+        // result.push(Expression::Ident("main".to_owned()));
+        // result.push(Expression::Lparen);
+        // result.push(Expression::Rparen);
+        // result.push(Expression::Semicolon);
+        // result.push(Expression::EOF);
         result //return the result
     }
 

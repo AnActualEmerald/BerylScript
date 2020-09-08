@@ -18,9 +18,15 @@ fn generate_literals() {
     let mut stack = StackFrame {
         stack: HashMap::new(),
     };
-    assert_eq!(r.walk_tree(&dummy_string, &mut stack), expected_string);
+    assert_eq!(
+        r.walk_tree(&dummy_string, &mut stack).unwrap(),
+        expected_string
+    );
 
-    assert_eq!(r.walk_tree(&dummy_number, &mut stack), expected_number);
+    assert_eq!(
+        r.walk_tree(&dummy_number, &mut stack).unwrap(),
+        expected_number
+    );
 }
 
 #[test]
