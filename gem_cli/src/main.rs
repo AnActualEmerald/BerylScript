@@ -54,8 +54,10 @@ fn main() {
 
 fn create_examples(path: &PathBuf) {
     let examples = [
-        "fn main() {\n\tprint \"Hello world!\"; \n}",
-        "fn main() {\n\tfor(i = 0; i < 10; i = i + 1){\n\t\tprint \"EmeraldScript rules!\";\n\t}\n}",
+        include_str!("examples/example1.em"),
+        include_str!("examples/example2.em"),
+        include_str!("examples/example3.em"),
+        // include_str!("examples/example4.em"),
     ];
 
     println!("Generating example files at {}", path.display());
