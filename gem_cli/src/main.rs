@@ -49,7 +49,6 @@ fn main() {
         create_examples(&path);
         return;
     }
-    
     repl().expect("REPL encountered an issue: ");
 }
 
@@ -115,9 +114,13 @@ fn repl() -> io::Result<usize> {
             continue;
         }
 
-        let ast = parser::parse(lexer::run(format!("{}", input).as_str()));
-        if let Err(e) = repl_run(ast, &mut runtime, &mut glob_frame) {
-            println!("{}", e);
+        match parser::parse(lexer::run(format!("{}", input).as_str())) {
+            Ok(ast) => {
+                if let Err(e) = repl_run(ast, &mut runtime, &mut glob_frame) {
+                    println!("{}", e);
+                }
+            }
+            Err(e) => println!("{}", e),
         }
         input = String::new();
 

@@ -29,6 +29,26 @@ pub enum Expression {
     EOF,
 }
 
+impl std::fmt::Display for Expression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Expression::Ident(name) => write!(f, "Identifier: {}", name),
+            Expression::Number(n) => write!(f, "Number: {}", n),
+            Expression::Word(n) => write!(f, "String: {}", n),
+            Expression::Key(n) => write!(f, "Keyword: {}", n),
+            Expression::Operator(n) => write!(f, "Operator: {}", n),
+            Expression::BoolOp(n) => write!(f, "Operator: {}", n),
+            Expression::Equal => write!(f, "Operator: ="),
+            Expression::Rparen => write!(f, "Symbol: )"),
+            Expression::Lparen => write!(f, "Symbol: ("),
+            Expression::Rbrace => write!(f, "Symbol: }}"),
+            Expression::Lbrace => write!(f, "Symbol: {{"),
+            Expression::Semicolon => write!(f, "Symbol: ;"),
+            _ => write!(f, "{}", self),
+        }
+    }
+}
+
 pub fn run(data: &str) -> Vec<Expression> {
     Lexer::new().tokenize(data)
 }
@@ -231,9 +251,7 @@ impl Lexer {
                 }
             }
 
-            '*' => Some(Expression::Operator(c)),
-            '+' => Some(Expression::Operator(c)),
-            '-' => Some(Expression::Operator(c)),
+            '*' | '+' | '-' | '.' => Some(Expression::Operator(c)),
             '/' => {
                 if let Some(sym) = ch.peek() {
                     if *sym == '/' {

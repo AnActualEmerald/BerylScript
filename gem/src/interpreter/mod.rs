@@ -348,12 +348,12 @@ impl Runtime {
                     match &*func.clone().borrow() {
                         Value::Function(_, params, body) => {
                             if params.len() != param.len() {
-                                panic!(
+                                Err(format!(
                                     "Expected {} arguments for {}, got {}",
                                     params.len(),
                                     n,
                                     param.len()
-                                );
+                                ))
                             } else {
                                 let mut func_frame = StackFrame {
                                     stack: HashMap::new(),

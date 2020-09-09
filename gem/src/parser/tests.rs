@@ -25,5 +25,5 @@ fn ast_generation() {
         )])),
     )]);
 
-    assert_eq!(parse(dummy), expected);
+    assert_eq!(parse(dummy).unwrap(), expected);
 }

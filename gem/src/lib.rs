@@ -11,7 +11,9 @@ pub fn run(data: String) {
     // println!("Got data: {}", data);
     let tokens = lexer::run(&data);
     // println!("Generated tokens: {:?}", tokens);
-    let ast = parser::parse(tokens);
+    match parser::parse(tokens) {
+        Ok(ast) => interpreter::run(ast),
+        Err(e) => println!("{}", e),
+    }
     // println!("Generated ast: {:?}", ast);
-    interpreter::run(ast);
 }
