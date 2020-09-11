@@ -91,6 +91,7 @@ fn repl() -> io::Result<usize> {
         "Welcome to the EmeraldScript REPL v{}!",
         env!("CARGO_PKG_VERSION")
     );
+    println!("do \"gem --help\" to see other commands");
     println!("Type exit or stop to leave\n");
 
     print!(">>> ");
