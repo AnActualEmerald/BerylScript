@@ -25,6 +25,8 @@ pub enum Expression {
     Lparen,
     Rbrace,
     Lbrace,
+    Lbracket,
+    Rbracket,
     Semicolon,
     EOF,
 }
@@ -41,6 +43,8 @@ impl std::fmt::Display for Expression {
             Expression::Equal => write!(f, "Operator: ="),
             Expression::Rparen => write!(f, "Symbol: )"),
             Expression::Lparen => write!(f, "Symbol: ("),
+            Expression::Rbracket => write!(f, "Symbol: ]"),
+            Expression::Lbracket => write!(f, "Symbol: ["),
             Expression::Rbrace => write!(f, "Symbol: }}"),
             Expression::Lbrace => write!(f, "Symbol: {{"),
             Expression::Semicolon => write!(f, "Symbol: ;"),
@@ -86,18 +90,19 @@ impl Lexer {
     pub fn run(data: &str) -> Vec<Expression> {
         Lexer::new().tokenize(data)
     }
+
     pub fn tokenize(&mut self, data: &str) -> Vec<Expression> {
         let mut result = vec![];
 
         let mut ch = data.chars().peekable();
 
         while let Some(c) = ch.next() {
-            // println!(
-            //     "Current char: {:?}\nNext char: {:?}\nCurrent token: {}",
-            //     c,
-            //     ch.peek().unwrap_or(&'?'),
-            //     self.token
-            // );
+            println!(
+                "Current char: {:?}\nNext char: {:?}\nCurrent token: {}",
+                c,
+                ch.peek().unwrap_or(&'?'),
+                self.token
+            );
             match self.current_state {
                 State::Comment => {
                     if c == '\n' {
@@ -115,7 +120,7 @@ impl Lexer {
                     }
                 }
                 State::EmNumber => {
-                    if let Some(r) = self.num_handle(c) {
+                    if let Some(r) = self.num_handle(c, &mut ch) {
                         result.push(r);
                     }
                 }
@@ -141,15 +146,11 @@ impl Lexer {
             }
             // println!("Current result: {:?}", result);
         }
-        // result.push(Expression::Ident("main".to_owned()));
-        // result.push(Expression::Lparen);
-        // result.push(Expression::Rparen);
-        // result.push(Expression::Semicolon);
-        // result.push(Expression::EOF);
+
         result //return the result
     }
 
-    fn num_handle(&mut self, c: char) -> Option<Expression> {
+    fn num_handle(&mut self, c: char, iter: &mut Peekable<Chars<'_>>) -> Option<Expression> {
         let result: Option<Expression>;
         if c.is_whitespace() || self.valid_symb.is_match(&c.to_string()) {
             self.current_state = State::Nothing;
@@ -169,6 +170,22 @@ impl Lexer {
             self.token.clear();
             self.check = true;
         } else {
+            if let Some(char) = iter.peek() {
+                if *char == ']' {
+                    let tmp = Some(Expression::Number(
+                        self.token.parse::<f32>().unwrap_or_else(|e| {
+                            println!(
+                                "Got this error message ({}) when parsing this: {}",
+                                e, self.token
+                            );
+                            process::exit(-1);
+                        }),
+                    ));
+                    self.token.clear();
+                    self.current_state = State::Nothing;
+                    return tmp;
+                }
+            }
             self.token.push(c);
             result = None;
         }
@@ -238,6 +255,8 @@ impl Lexer {
             '}' => Some(Expression::Rbrace),
             '(' => Some(Expression::Lparen),
             ')' => Some(Expression::Rparen),
+            '[' => Some(Expression::Lbracket),
+            ']' => Some(Expression::Rbracket),
             '=' => {
                 if let Some(sym) = ch.peek() {
                     if *sym == '=' {

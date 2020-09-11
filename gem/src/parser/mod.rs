@@ -25,6 +25,7 @@ pub enum ExprNode {
     ReturnVal(Box<ExprNode>),
     IfStatement(Box<ExprNode>, Box<ExprNode>, Box<ExprNode>), //condition, body, branch
     ElseStatement(Box<ExprNode>),                             //body
+    Array(Vec<ExprNode>),
     Illegal(Option<Expression>),
     EOF,
 }
@@ -209,6 +210,9 @@ fn expr(
             Expression::Lbrace => {
                 node = make_block(iter)?;
             }
+            Expression::Lbracket => {
+                node = make_array(iter)?;
+            }
             _ => {}
         }
     } else {
@@ -325,5 +329,17 @@ fn make_if(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, String
         ))
     } else {
         Err(format!("Expected \"(\" found {}", iter.next().unwrap()))
+    }
+}
+
+fn make_array(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, String> {
+    let mut res = vec![];
+    loop {
+        if let Some(Expression::Rbracket) = iter.peek() {
+            iter.next();
+            return Ok(ExprNode::Array(res));
+        } else {
+            res.push(expr(iter, None)?);
+        }
     }
 }

@@ -12,6 +12,7 @@ enum Value {
     Float(f32),
     EmString(String),
     EmBool(bool),
+    EmArray(Vec<Value>),
     // Char(u8),
     Name(String),
     Function(Expression, Vec<Value>, ExprNode),
@@ -27,6 +28,14 @@ impl std::fmt::Display for Value {
             Value::Null => write!(f, "null"),
             Value::Function(n, p, _) => write!(f, "{:?}({:?})", n, p),
             Value::EmBool(b) => write!(f, "{}", b),
+            Value::EmArray(v) => {
+                let mut tmp = format!("[");
+                for val in v.iter() {
+                    tmp = format!("{}, {}", tmp, val);
+                }
+
+                write!(f, "{}", tmp)
+            }
         }
     }
 }
@@ -122,6 +131,7 @@ impl Runtime {
             ExprNode::IfStatement(con, body, branch) => {
                 res = self.do_if(con, body, branch, frame)?
             }
+            ExprNode::Array(v) => res = self.create_array(v, frame)?,
             _ => res = Value::Null,
         }
         //Reset the returning flag, since we're returning whatever value we got anyways
@@ -300,15 +310,12 @@ impl Runtime {
                             let tmp = self.walk_tree(&value, frame)?;
                             // println!("DEBUG: tmp={:?}", tmp);
                             match tmp {
-                                Value::EmString(r) => println!("{}", r),
-                                // Value::Char(c) => println!("{}", c),
-                                Value::Float(i) => println!("{}", i),
                                 Value::Name(n) => println!("{}", frame.get_var(&n)),
                                 Value::Null => println!("null"),
                                 Value::Function(_, _, _) => {
                                     println!("{}", self.walk_tree(&value, frame)?)
                                 } // _ => {}
-                                Value::EmBool(b) => println!("{}", b),
+                                _ => println!("{}", tmp),
                             }
                         }
                     }
@@ -324,8 +331,6 @@ impl Runtime {
                         }
                     }
                 }
-                // "true" => return Value::EmBool(true),
-                // "false" => return Value::EmBool(false),
                 _ => {}
             }
         }
@@ -409,6 +414,19 @@ impl Runtime {
                 self.walk_tree(branches, frame)
             }
         }
+    }
+
+    fn create_array(
+        &mut self,
+        raw: &Vec<ExprNode>,
+        frame: &mut StackFrame,
+    ) -> Result<Value, String> {
+        let mut tmp = vec![];
+        for val in raw.iter() {
+            tmp.push(self.walk_tree(val, frame)?);
+        }
+
+        Ok(Value::EmArray(tmp))
     }
 }
 
