@@ -216,13 +216,13 @@ impl Runtime {
     ) -> Result<Value, String> {
         match opr {
             Expression::Equal => {
-                return if let ExprNode::Name(n) = left {
+                if let ExprNode::Name(n) = left {
                     let v = self.walk_tree(&right, frame)?;
                     frame.set_var(n.to_string(), v);
                     Ok(Value::Null)
                 } else {
                     Err(format!("Expected name, found {:?}", left))
-                };
+                }
             }
             Expression::Operator(o) => {
                 let l_p = self.walk_tree(&left, frame)?;
@@ -252,7 +252,7 @@ impl Runtime {
                     _ => 0.0 as f32,
                 };
 
-                return if *o == '+' {
+                if *o == '+' {
                     Ok(Value::Float(f + r))
                 } else if *o == '-' {
                     Ok(Value::Float(f - r))
@@ -262,13 +262,13 @@ impl Runtime {
                     Ok(Value::Float(f / r))
                 } else {
                     Err(format!("Invalid Operator: {}", o))
-                };
+                }
             }
             Expression::BoolOp(op) => {
                 let l_p = self.walk_tree(&left, frame);
                 let r_p = self.walk_tree(&right, frame);
                 // println!("{} {} {}", l_p, op, r_p);
-                return match op.as_str() {
+                match op.as_str() {
                     "==" => Ok(Value::EmBool(l_p == r_p)),
                     "!=" => Ok(Value::EmBool(l_p != r_p)),
                     ">=" => Ok(Value::EmBool(l_p >= r_p)),
@@ -276,9 +276,9 @@ impl Runtime {
                     "<" => Ok(Value::EmBool(l_p < r_p)),
                     ">" => Ok(Value::EmBool(l_p > r_p)),
                     _ => Err(format!("Invalid Operator: {}", op)),
-                };
+                }
             }
-            _ => return Ok(Value::Null),
+            _ => Ok(Value::Null),
         }
     }
 
@@ -341,7 +341,7 @@ impl Runtime {
         frame: &mut StackFrame,
     ) -> Result<Value, String> {
         match name {
-            Expression::Key(_) => return self.keyword(name, &param[0], frame),
+            Expression::Key(_) => self.keyword(name, &param[0], frame),
             Expression::Ident(n) => {
                 if let Some(func) = self.heap.get(n) {
                     //I'd really like to not have to borrow here
@@ -371,7 +371,7 @@ impl Runtime {
                                         }
                                     }
                                 }
-                                let ret = self.walk_tree(&body, &mut func_frame);
+                                self.walk_tree(&body, &mut func_frame)
                                 //this shouldn't be necessary since Rust will destroy the old
                                 //stack frame anyways when it goes out of  scope
                                 // params.iter().for_each(|e| {
@@ -379,8 +379,6 @@ impl Runtime {
                                 //         frame.free_var(n)
                                 //     }
                                 // });
-
-                                return ret;
                             }
                         }
                         _ => Err(format!("Expected function, found {}", func.borrow())),
@@ -402,13 +400,23 @@ impl Runtime {
     ) -> Result<Value, String> {
         if self.walk_tree(condition, frame)? == Value::EmBool(true) {
             self.walk_tree(body, frame)
+        } else if let ExprNode::IfStatement(con, body, branch) = branches {
+            self.do_if(con, body, branch, frame)
         } else {
-            if let ExprNode::IfStatement(con, body, branch) = branches {
-                self.do_if(con, body, branch, frame)
-            } else {
-                self.walk_tree(branches, frame)
-            }
+            self.walk_tree(branches, frame)
         }
+    }
+}
+
+impl Default for Runtime {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for StackFrame {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

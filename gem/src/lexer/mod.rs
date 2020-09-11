@@ -83,9 +83,6 @@ impl Lexer {
         }
     }
 
-    pub fn run(data: &str) -> Vec<Expression> {
-        Lexer::new().tokenize(data)
-    }
     pub fn tokenize(&mut self, data: &str) -> Vec<Expression> {
         let mut result = vec![];
 

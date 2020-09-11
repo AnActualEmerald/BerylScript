@@ -245,7 +245,7 @@ fn find_params(
             }
             Some(Expression::Semicolon) => break,
             Some(Expression::Lbrace) => {
-                return Err(format!("Can't have block in function parameters"));
+                return Err("Can't have block in function parameters".to_owned());
             }
             _ => params.push(expr(peekable, cur)?),
         }
