@@ -31,8 +31,11 @@ impl std::fmt::Display for Value {
             Value::EmArray(v) => {
                 let mut tmp = format!("[");
                 for val in v.iter() {
-                    tmp = format!("{}, {}", tmp, val);
+                    tmp = format!("{}{}, ", tmp, val);
                 }
+                tmp.pop();
+                tmp.pop();
+                tmp.push(']');
 
                 write!(f, "{}", tmp)
             }
@@ -132,6 +135,7 @@ impl Runtime {
                 res = self.do_if(con, body, branch, frame)?
             }
             ExprNode::Array(v) => res = self.create_array(v, frame)?,
+            ExprNode::Index(ident, index) => res = self.index_array(ident, index, frame)?,
             _ => res = Value::Null,
         }
         //Reset the returning flag, since we're returning whatever value we got anyways
@@ -427,6 +431,23 @@ impl Runtime {
         }
 
         Ok(Value::EmArray(tmp))
+    }
+
+    fn index_array(
+        &mut self,
+        ident: &ExprNode,
+        index: &ExprNode,
+        frame: &mut StackFrame,
+    ) -> Result<Value, String> {
+        if let Value::EmArray(val) = self.walk_tree(ident, frame)? {
+            if let Value::Float(i) = self.walk_tree(index, frame)? {
+                Ok(val.get(i as usize).unwrap_or(&Value::Null).clone())
+            } else {
+                Err("Identfier wasn't a string, something really broke".to_string())
+            }
+        } else {
+            Err(format!("Array index wasn't a number: {:?}", index))
+        }
     }
 }
 

@@ -12,7 +12,10 @@ pub fn run(data: String) {
     let tokens = lexer::run(&data);
     // println!("Generated tokens: {:?}", tokens);
     match parser::parse(tokens) {
-        Ok(ast) => interpreter::run(ast),
+        Ok(ast) => {
+            // println!("{:?}", &ast);
+            interpreter::run(ast)
+        }
         Err(e) => println!("{}", e),
     }
     // println!("Generated ast: {:?}", ast);

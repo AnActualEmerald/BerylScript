@@ -26,6 +26,7 @@ pub enum ExprNode {
     IfStatement(Box<ExprNode>, Box<ExprNode>, Box<ExprNode>), //condition, body, branch
     ElseStatement(Box<ExprNode>),                             //body
     Array(Vec<ExprNode>),
+    Index(Box<ExprNode>, Box<ExprNode>), //array identifier, inedex
     Illegal(Option<Expression>),
     EOF,
 }
@@ -182,11 +183,11 @@ fn expr(
             Expression::Number(n) => node = ExprNode::NumLiteral(Box::new(*n)),
             Expression::Key(w) => node = key_word(iter, cur, w)?,
             Expression::Ident(i) => {
-                node = if let Some(Expression::Lparen) = iter.peek() {
-                    // iter.next();
-                    expr(iter, t)?
-                } else {
-                    ExprNode::Name(Box::new(i.to_string()))
+                // println!("Next exp: {:?}", iter.peek());
+                node = match iter.peek() {
+                    Some(Expression::Lparen) => expr(iter, t)?,
+                    Some(Expression::Lbracket) => index_array(t.unwrap(), iter)?,
+                    _ => ExprNode::Name(Box::new(i.to_string())),
                 }
             }
             Expression::Lparen => {
@@ -211,7 +212,11 @@ fn expr(
                 node = make_block(iter)?;
             }
             Expression::Lbracket => {
-                node = make_array(iter)?;
+                // println!("current expression: {:?}", cur);
+                node = match cur {
+                    Some(Expression::Ident(_)) => index_array(cur.unwrap(), iter)?,
+                    _ => make_array(iter)?,
+                }
             }
             _ => {}
         }
@@ -220,6 +225,19 @@ fn expr(
     }
 
     Ok(node)
+}
+
+fn index_array(
+    ident: &Expression,
+    iter: &mut Peekable<Iter<'_, Expression>>,
+) -> Result<ExprNode, String> {
+    //check if we need to skip the bracket or not
+    if let Some(Expression::Lbracket) = iter.peek() {
+        iter.next();
+    }
+    let index = expr(iter, None)?;
+
+    Ok(ExprNode::Index(Box::new(make_node(ident)), Box::new(index)))
 }
 
 fn make_node(exp: &Expression) -> ExprNode {

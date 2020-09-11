@@ -82,7 +82,7 @@ impl Lexer {
             token: String::new(),
             valid_num: Regex::new(r"\d*").unwrap(),
             valid_chars: Regex::new(r"\D+[[:word:]]*").unwrap(),
-            valid_symb: Regex::new(r"[\{\}\(\)=;\*\+\-/#!,\t\n]").unwrap(),
+            valid_symb: Regex::new(r"[\{\}\(\)=;\*\+\-/#!,\t\n\[\]]").unwrap(),
             check: false,
         }
     }
@@ -97,12 +97,12 @@ impl Lexer {
         let mut ch = data.chars().peekable();
 
         while let Some(c) = ch.next() {
-            println!(
-                "Current char: {:?}\nNext char: {:?}\nCurrent token: {}",
-                c,
-                ch.peek().unwrap_or(&'?'),
-                self.token
-            );
+            // println!(
+            //     "Current char: {:?}\nNext char: {:?}\nCurrent token: {}",
+            //     c,
+            //     ch.peek().unwrap_or(&'?'),
+            //     self.token
+            // );
             match self.current_state {
                 State::Comment => {
                     if c == '\n' {
@@ -154,6 +154,7 @@ impl Lexer {
         let result: Option<Expression>;
         if c.is_whitespace() || self.valid_symb.is_match(&c.to_string()) {
             self.current_state = State::Nothing;
+
             if !c.is_whitespace() && c.is_numeric() || c == '.' {
                 //the current char could be part of the thing we're accumulating
                 self.token.push(c);
@@ -164,6 +165,7 @@ impl Lexer {
                         "Got this error message ({}) when parsing this: {}",
                         e, self.token
                     );
+
                     process::exit(-1);
                 }),
             ));
@@ -172,6 +174,9 @@ impl Lexer {
         } else {
             if let Some(char) = iter.peek() {
                 if *char == ']' {
+                    if c.is_numeric() || c == '.' {
+                        self.token.push(c);
+                    }
                     let tmp = Some(Expression::Number(
                         self.token.parse::<f32>().unwrap_or_else(|e| {
                             println!(
