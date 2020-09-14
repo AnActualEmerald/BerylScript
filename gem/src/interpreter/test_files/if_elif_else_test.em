@@ -1,3 +1,4 @@
+//if any of these are false by the end then something doesn't work right
 res = [false, false, false];
 
 if(1 == 1){
@@ -7,7 +8,7 @@ if(1 == 1){
 if(1 != 1){
     
 }else {
-    res[1] = false;
+    res[1] = true;
 }
 
 if(1 != 1){

@@ -91,26 +91,33 @@ fn looping() {
 
         repl_run(dummy, &mut runtime, &mut frame);
 
-        assert_eq!(Value::Float(10.0), *frame.get_var("result"));
+        return assert_eq!(Value::Float(10.0), *frame.get_var("result"));
     }
+
+    assert!(false);
 }
 
 //this effectively also tests if arrays is working correctly due to the way the test file is written
 #[test]
 fn if_elif_else() {
-    if let Ok(dummy) = parser::parse(lexer::run(include_str!("test_files/for_test.em"))) {
+    if let Ok(dummy) = parser::parse(lexer::run(include_str!("test_files/if_elif_else_test.em"))) {
         let mut runtime = Runtime::new();
         let mut frame = StackFrame::new();
 
-        repl_run(dummy, &mut runtime, &mut frame);
+        match repl_run(dummy, &mut runtime, &mut frame) {
+            Ok(_) => {}
+            Err(e) => println!("Got this error running the if test: {}", e),
+        }
 
         if let Value::EmArray(v) = frame.get_var("res") {
             for val in v {
                 match val {
-                    Value::EmBool(b) => assert!(false),
+                    Value::EmBool(b) => return assert!(b),
                     _ => {}
                 }
             }
         }
+
+        assert!(false);
     }
 }
