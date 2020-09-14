@@ -12,6 +12,8 @@ use std::str::Chars;
 // Enums are more idomatic and make the resulting Vec much easier to understand
 // I may need more types to make things easier to work with but for now I think
 // this should suffice
+
+///Describes the different tokens that can be generated from the source code
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Expression {
     Ident(String),
@@ -25,6 +27,8 @@ pub enum Expression {
     Lparen,
     Rbrace,
     Lbrace,
+    Lbracket,
+    Rbracket,
     Semicolon,
     EOF,
 }
@@ -41,6 +45,8 @@ impl std::fmt::Display for Expression {
             Expression::Equal => write!(f, "Operator: ="),
             Expression::Rparen => write!(f, "Symbol: )"),
             Expression::Lparen => write!(f, "Symbol: ("),
+            Expression::Rbracket => write!(f, "Symbol: ]"),
+            Expression::Lbracket => write!(f, "Symbol: ["),
             Expression::Rbrace => write!(f, "Symbol: }}"),
             Expression::Lbrace => write!(f, "Symbol: {{"),
             Expression::Semicolon => write!(f, "Symbol: ;"),
@@ -53,6 +59,7 @@ pub fn run(data: &str) -> Vec<Expression> {
     Lexer::new().tokenize(data)
 }
 
+///Describes the current state of the lexer
 #[derive(PartialEq, Debug)]
 enum State {
     Nothing,
@@ -62,6 +69,7 @@ enum State {
     Comment,
 }
 
+///Handles the tokenization of the source code
 struct Lexer {
     current_state: State,
     token: String,
@@ -72,17 +80,20 @@ struct Lexer {
 }
 
 impl Lexer {
+    ///Creates a new lexer and initializes the regular expressions
     pub fn new() -> Lexer {
         Lexer {
             current_state: State::Nothing,
             token: String::new(),
             valid_num: Regex::new(r"\d*").unwrap(),
             valid_chars: Regex::new(r"\D+[[:word:]]*").unwrap(),
-            valid_symb: Regex::new(r"[\{\}\(\)=;\*\+\-/#!,\t\n]").unwrap(),
+            valid_symb: Regex::new(r"[\{\}\(\)=;\*\+\-/#!,\t\n\[\]]").unwrap(),
             check: false,
         }
     }
 
+
+    ///Loops through the characters in the provided string can outputs a vec of expressions
     pub fn tokenize(&mut self, data: &str) -> Vec<Expression> {
         let mut result = vec![];
 
@@ -112,7 +123,7 @@ impl Lexer {
                     }
                 }
                 State::EmNumber => {
-                    if let Some(r) = self.num_handle(c) {
+                    if let Some(r) = self.num_handle(c, &mut ch) {
                         result.push(r);
                     }
                 }
@@ -138,18 +149,16 @@ impl Lexer {
             }
             // println!("Current result: {:?}", result);
         }
-        // result.push(Expression::Ident("main".to_owned()));
-        // result.push(Expression::Lparen);
-        // result.push(Expression::Rparen);
-        // result.push(Expression::Semicolon);
-        // result.push(Expression::EOF);
+
         result //return the result
     }
 
-    fn num_handle(&mut self, c: char) -> Option<Expression> {
+    ///Handles generation of number literals
+    fn num_handle(&mut self, c: char, iter: &mut Peekable<Chars<'_>>) -> Option<Expression> {
         let result: Option<Expression>;
         if c.is_whitespace() || self.valid_symb.is_match(&c.to_string()) {
             self.current_state = State::Nothing;
+
             if !c.is_whitespace() && c.is_numeric() || c == '.' {
                 //the current char could be part of the thing we're accumulating
                 self.token.push(c);
@@ -160,18 +169,39 @@ impl Lexer {
                         "Got this error message ({}) when parsing this: {}",
                         e, self.token
                     );
+
                     process::exit(-1);
                 }),
             ));
             self.token.clear();
             self.check = true;
         } else {
+            if let Some(char) = iter.peek() {
+                if *char == ']' {
+                    if c.is_numeric() || c == '.' {
+                        self.token.push(c);
+                    }
+                    let tmp = Some(Expression::Number(
+                        self.token.parse::<f32>().unwrap_or_else(|e| {
+                            println!(
+                                "Got this error message ({}) when parsing this: {}",
+                                e, self.token
+                            );
+                            process::exit(-1);
+                        }),
+                    ));
+                    self.token.clear();
+                    self.current_state = State::Nothing;
+                    return tmp;
+                }
+            }
             self.token.push(c);
             result = None;
         }
         result
     }
 
+    ///Handles the generation of identifiers and keywords
     fn name_handle(&mut self, c: char) -> Option<Expression> {
         let result: Option<Expression>;
         if c.is_whitespace() || self.valid_symb.is_match(&c.to_string()) {
@@ -219,6 +249,7 @@ impl Lexer {
         result
     }
 
+    ///The default state of the lexer, handles symbols and decides when to change states
     fn nothing_handle(&mut self, c: char, ch: &mut Peekable<Chars<'_>>) -> Option<Expression> {
         // println!(
         //     "This is what it looks like when you call char.to_string(): {:?}",
@@ -235,6 +266,8 @@ impl Lexer {
             '}' => Some(Expression::Rbrace),
             '(' => Some(Expression::Lparen),
             ')' => Some(Expression::Rparen),
+            '[' => Some(Expression::Lbracket),
+            ']' => Some(Expression::Rbracket),
             '=' => {
                 if let Some(sym) = ch.peek() {
                     if *sym == '=' {
@@ -302,11 +335,6 @@ impl Lexer {
                     None
                 }
             }
-
-            // '#' => {
-            //     self.current_state = State::Comment;
-            //     None
-            // }
             _ => {
                 self.token.push(c);
                 if self.valid_chars.is_match(&self.token) {

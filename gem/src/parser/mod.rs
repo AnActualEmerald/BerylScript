@@ -9,6 +9,7 @@ use std::slice::Iter;
 
 //making the nodes hold the actual values instead of the Expressions might be worth it to make
 //interpreting easier
+///Enum with variants for each type of statement or literal in the lang
 #[derive(PartialEq, Debug, Clone, PartialOrd)]
 pub enum ExprNode {
     Operation(Box<Expression>, Box<ExprNode>, Box<ExprNode>), //Operator, Left side, Right side
@@ -25,23 +26,28 @@ pub enum ExprNode {
     ReturnVal(Box<ExprNode>),
     IfStatement(Box<ExprNode>, Box<ExprNode>, Box<ExprNode>), //condition, body, branch
     ElseStatement(Box<ExprNode>),                             //body
+    Array(Vec<ExprNode>),
+    Index(Box<ExprNode>, Box<ExprNode>), //array identifier, inedex
     Illegal(Option<Expression>),
     EOF,
 }
 
+///Starts the parser
 pub fn parse(tokens: Vec<Expression>) -> Result<ExprNode, String> {
     //let root = vec!();
-    let mut iter = tokens.iter().peekable();
+    let iter = tokens.iter();
 
-    make_block(&mut iter)
+    make_block(&mut iter.peekable())
 
     // node
 }
 
-fn make_block(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, String> {
+///Loops through expressions to generate all of the nodes in a block of code
+fn make_block(iter: &mut Peekable<Iter<Expression>>) -> Result<ExprNode, String> {
     let mut root = vec![];
 
     while let Some(t) = iter.next() {
+        //println!("Expression in block gen was: {}", t);
         match t {
             Expression::EOF => break,
             Expression::Rbrace => {
@@ -57,13 +63,14 @@ fn make_block(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, Str
             Expression::Lbrace => {
                 root.push(make_block(iter)?);
             }
-            _ => {}
+            _ => {} //root.push(read_line(Some(&t), iter)?),
         }
     }
 
     Ok(ExprNode::Block(root))
 }
 
+///Handles all the different keywords
 fn key_word(
     iter: &mut Peekable<Iter<'_, Expression>>,
     cur: Option<&Expression>,
@@ -71,8 +78,8 @@ fn key_word(
 ) -> Result<ExprNode, String> {
     match word.trim() {
         "print" => Ok(ExprNode::Call(
-            Box::new(cur.unwrap().clone()),
-            vec![expr(iter, cur)?],
+            Box::new(Expression::Key(word.to_owned())),
+            vec![read_line(None, iter, None)?],
         )),
         "fn" => def_func(iter, cur),
         "return" => Ok(ExprNode::ReturnVal(Box::new(expr(iter, cur)?))),
@@ -99,6 +106,7 @@ fn key_word(
     }
 }
 
+///Generates the nodes needed to define a function
 fn def_func(
     iter: &mut Peekable<Iter<'_, Expression>>,
     _cur: Option<&Expression>,
@@ -132,6 +140,56 @@ fn def_func(
     Ok(ExprNode::Func(Box::new(name), params, Box::new(body)))
 }
 
+///Reads to the end of the current line, stopping at the first semicolon or lbrace, or the specified deliminator
+fn read_line<'a>(
+    prev: Option<&Vec<Expression>>,
+    iter: &mut Peekable<Iter<Expression>>,
+    delim: Option<&Expression>,
+) -> Result<ExprNode, String> {
+    //iterate through the next set of expressions until we get to a ';'
+    let mut accum = if let Some(v) = prev {
+        v.clone()
+    } else {
+        Vec::new()
+    };
+    let check = if let Some(e) = delim {
+        e.clone()
+    } else {
+        Expression::Semicolon
+    };
+
+    for exp in iter.take_while(|e| !(check == **e || Expression::Lbrace == **e)) {
+        match exp {
+            Expression::Operator(_) => {
+                return Ok(ExprNode::Operation(
+                    Box::new(exp.clone()),
+                    Box::new(expr(&mut accum.iter().peekable(), None)?),
+                    Box::new(read_line(None, iter, delim)?),
+                ));
+            }
+            Expression::BoolOp(_) => {
+                return Ok(ExprNode::Operation(
+                    Box::new(exp.clone()),
+                    Box::new(expr(&mut accum.iter().peekable(), None)?),
+                    Box::new(read_line(None, iter, delim)?),
+                ))
+            }
+            Expression::Equal => {
+                return Ok(ExprNode::Operation(
+                    Box::new(exp.clone()),
+                    Box::new(expr(&mut accum.iter().peekable(), None)?),
+                    Box::new(read_line(None, iter, None)?),
+                ))
+            }
+            // Expression::BoolOp(_)
+            _ => accum.push(exp.clone()),
+        }
+        // println!("Accumulated expressions: {:?}", accum);
+    }
+
+    Ok(expr(&mut accum.iter().peekable(), None)?)
+}
+
 fn expr(
     iter: &mut Peekable<Iter<'_, Expression>>,
     cur: Option<&Expression>,
@@ -153,13 +211,17 @@ fn expr(
         }
     }
     if let Some(exp) = t {
+        // println!(
+        //     "The expresion was: {:?}, current Expression was {:?}",
+        //     &t, cur
+        // );
         match exp {
             Expression::Equal => {
                 if let Some(Expression::Ident(name)) = cur {
                     node = ExprNode::Operation(
                         Box::new(t.unwrap().clone()),
                         Box::new(ExprNode::Name(Box::new(name.to_string()))),
-                        Box::new(expr(iter, t)?),
+                        Box::new(read_line(None, iter, None)?),
                     )
                 }
             }
@@ -167,7 +229,7 @@ fn expr(
                 node = ExprNode::Operation(
                     Box::new(t.unwrap().clone()),
                     Box::new(make_node(cur.unwrap())),
-                    Box::new(expr(iter, t)?),
+                    Box::new(read_line(None, iter, None)?),
                 )
             }
             Expression::BoolOp(_) => {
@@ -181,11 +243,11 @@ fn expr(
             Expression::Number(n) => node = ExprNode::NumLiteral(Box::new(*n)),
             Expression::Key(w) => node = key_word(iter, cur, w)?,
             Expression::Ident(i) => {
-                node = if let Some(Expression::Lparen) = iter.peek() {
-                    // iter.next();
-                    expr(iter, t)?
-                } else {
-                    ExprNode::Name(Box::new(i.to_string()))
+                // println!("Next exp: {:?}", iter.peek());
+                node = match iter.peek() {
+                    Some(Expression::Lparen) => expr(iter, t)?,
+                    Some(Expression::Lbracket) => index_array(t.unwrap(), iter)?,
+                    _ => ExprNode::Name(Box::new(i.to_string())),
                 }
             }
             Expression::Lparen => {
@@ -209,13 +271,39 @@ fn expr(
             Expression::Lbrace => {
                 node = make_block(iter)?;
             }
-            _ => {}
+            Expression::Lbracket => {
+                // println!("current expression: {:?}", cur);
+                // node = read_line(cur, iter, None)?;
+                node = match cur {
+                    Some(Expression::Ident(_)) => read_line(
+                        Some(&vec![cur.unwrap().clone(), t.unwrap().clone()]),
+                        iter,
+                        None,
+                    )?,
+                    _ => make_array(iter)?,
+                }
+            }
+            Expression::Semicolon => {}
+            _ => node = expr(iter, cur)?,
         }
     } else {
         node = ExprNode::EOF;
     }
 
     Ok(node)
+}
+
+fn index_array(
+    ident: &Expression,
+    iter: &mut Peekable<Iter<'_, Expression>>,
+) -> Result<ExprNode, String> {
+    //check if we need to skip the bracket or not
+    if let Some(Expression::Lbracket) = iter.peek() {
+        iter.next();
+    }
+    let index = expr(iter, None)?;
+
+    Ok(ExprNode::Index(Box::new(make_node(ident)), Box::new(index)))
 }
 
 fn make_node(exp: &Expression) -> ExprNode {
@@ -265,13 +353,8 @@ fn make_for_loop(
             if let ExprNode::Operation(op, _, _) = &dec {
                 //double check to make sure this was an assignment op
                 if **op == Expression::Equal {
-                    iter.next(); //skip the semicolon afterwards
-                    let condition = expr(iter, cur)?; //get the condition expression (i < 10)
-                    iter.next(); //skip the last semicolon
-                    name = iter.next(); //get the name again to use as cur
-                    let increment = expr(iter, name)?; //get the incrementation expression (i = i + 1)
-                    iter.next();
-                    iter.next(); //skipping the closing paren and opening braceso that the body can be parsed properly
+                    let condition = read_line(None, iter, None)?; //get the condition expression (i < 10)
+                    let increment = read_line(None, iter, Some(&Expression::Rparen))?; //get the incrementation expression (i = i + 1)
                     return Ok(ExprNode::ForLoopDec(
                         Box::new(dec),
                         Box::new(condition),
@@ -281,8 +364,7 @@ fn make_for_loop(
             }
             //for loops don't need to have an assinment op, so that needs to be supported
             iter.next(); //skip the last semicolon
-            name = iter.next(); //get the name again to use as cur
-            let increment = expr(iter, name)?; //get the incrementation expression (i = i + 1)
+            let increment = read_line(None, iter, Some(&Expression::Rparen))?; //get the incrementation expression (i = i + 1)
             iter.next();
             iter.next(); //skipping the closing paren and opening braceso that the body can be parsed properly
             Ok(ExprNode::ForLoopDec(
@@ -325,5 +407,17 @@ fn make_if(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, String
         ))
     } else {
         Err(format!("Expected \"(\" found {}", iter.next().unwrap()))
+    }
+}
+
+fn make_array(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, String> {
+    let mut res = vec![];
+    loop {
+        if let Some(Expression::Rbracket) = iter.peek() {
+            iter.next();
+            return Ok(ExprNode::Array(res));
+        } else {
+            res.push(expr(iter, None)?);
+        }
     }
 }

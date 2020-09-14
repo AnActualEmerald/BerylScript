@@ -9,6 +9,7 @@ use std::path::PathBuf;
 #[macro_use]
 extern crate clap;
 
+///Starts the REPL by default, also has `run` and `examples` subcommands
 fn main() {
     let matches = clap_app!(app =>
     (name: "Gem CLI")
@@ -52,6 +53,7 @@ fn main() {
     repl().expect("REPL encountered an issue: ");
 }
 
+///Generates example files in the target directory or one provided by the user
 fn create_examples(path: &PathBuf) {
     let examples = [
         include_str!("examples/example1.em"),
@@ -79,6 +81,7 @@ fn create_examples(path: &PathBuf) {
     }
 }
 
+///Runs a REPL on the command line
 fn repl() -> io::Result<usize> {
     use gem::interpreter::*;
     use gem::{lexer, parser};

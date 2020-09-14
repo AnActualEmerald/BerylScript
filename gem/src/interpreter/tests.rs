@@ -1,5 +1,7 @@
 use crate::interpreter::*;
+use crate::lexer;
 use crate::lexer::Expression;
+use crate::parser;
 use crate::parser::ExprNode;
 use std::collections::HashMap;
 
@@ -47,7 +49,7 @@ fn assign_vars() {
         stack: HashMap::new(),
     };
     r.walk_tree(&op, &mut stack);
-    assert_eq!(stack.get_var(&"test".to_owned()), &expected);
+    assert_eq!(stack.get_var(&"test"), &expected);
 }
 
 #[test]
@@ -79,4 +81,43 @@ fn looping() {
     r.do_loop(&ty, &condition, &block, &mut stack);
 
     assert_eq!(*stack.get_var("i"), Value::Float(10.0));
+
+    //test for loops here
+
+    //include a file with the code to test in it so it can be updated more easily
+    if let Ok(dummy) = parser::parse(lexer::run(include_str!("test_files/for_test.em"))) {
+        let mut runtime = Runtime::new();
+        let mut frame = StackFrame::new();
+
+        repl_run(dummy, &mut runtime, &mut frame);
+
+        return assert_eq!(Value::Float(10.0), *frame.get_var("result"));
+    }
+
+    assert!(false);
+}
+
+//this effectively also tests if arrays is working correctly due to the way the test file is written
+#[test]
+fn if_elif_else() {
+    if let Ok(dummy) = parser::parse(lexer::run(include_str!("test_files/if_elif_else_test.em"))) {
+        let mut runtime = Runtime::new();
+        let mut frame = StackFrame::new();
+
+        match repl_run(dummy, &mut runtime, &mut frame) {
+            Ok(_) => {}
+            Err(e) => println!("Got this error running the if test: {}", e),
+        }
+
+        if let Value::EmArray(v) = frame.get_var("res") {
+            for val in v {
+                match val {
+                    Value::EmBool(b) => return assert!(b),
+                    _ => {}
+                }
+            }
+        }
+
+        assert!(false);
+    }
 }

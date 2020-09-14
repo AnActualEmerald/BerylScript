@@ -6,12 +6,14 @@ use super::parser::ExprNode;
 use std::fmt;
 use std::{cell::RefCell, collections::HashMap};
 
+///Represents everything that exists in the language currently
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 enum Value {
     Null,
     Float(f32),
     EmString(String),
     EmBool(bool),
+    EmArray(Vec<Value>),
     // Char(u8),
     Name(String),
     Function(Expression, Vec<Value>, ExprNode),
@@ -27,14 +29,27 @@ impl std::fmt::Display for Value {
             Value::Null => write!(f, "null"),
             Value::Function(n, p, _) => write!(f, "{:?}({:?})", n, p),
             Value::EmBool(b) => write!(f, "{}", b),
+            Value::EmArray(v) => {
+                let mut tmp = format!("[");
+                for val in v.iter() {
+                    tmp = format!("{}{}, ", tmp, val);
+                }
+                tmp.pop();
+                tmp.pop();
+                tmp.push(']');
+
+                write!(f, "{}", tmp)
+            }
         }
     }
 }
 
+///Stores variables in a hashmap for a given function block. Only created on function call, with the exception of the global frame
 pub struct StackFrame {
     stack: HashMap<String, Value>,
 }
 
+///Handles all of the interpretation, and keeps track of things like function definitions
 pub struct Runtime {
     // tree: ExprNode,
     // stack: Vec<StackFrame>,
@@ -42,6 +57,7 @@ pub struct Runtime {
     returning: bool,
 }
 
+///A run function that accepts a runtime and global frame, mostly for use with the REPL
 pub fn repl_run(
     tree: ExprNode,
     runtime: &mut Runtime,
@@ -53,6 +69,7 @@ pub fn repl_run(
     }
 }
 
+///Walks through the provided tree and executes all the nodes
 pub fn run(tree: ExprNode) {
     let mut r = Runtime::new();
     // r.find_global_vars();
@@ -70,6 +87,7 @@ pub fn run(tree: ExprNode) {
 
 // Basically *is* the interpreter, walks throught the AST and executes the nodes as needed
 impl Runtime {
+    ///Creates a new Runtime with an empty heap
     pub fn new() -> Runtime {
         Runtime {
             heap: HashMap::new(),
@@ -77,6 +95,7 @@ impl Runtime {
         }
     }
 
+    ///Matches the provided node and dispatches functions to handle it
     fn walk_tree(&mut self, node: &ExprNode, frame: &mut StackFrame) -> Result<Value, String> {
         // println!(
         //     "Walking tree: \n    Current node: {:?}\n     Current stack: {:?}",
@@ -122,6 +141,8 @@ impl Runtime {
             ExprNode::IfStatement(con, body, branch) => {
                 res = self.do_if(con, body, branch, frame)?
             }
+            ExprNode::Array(v) => res = self.create_array(v, frame)?,
+            ExprNode::Index(ident, index) => res = self.index_array(ident, index, frame)?,
             _ => res = Value::Null,
         }
         //Reset the returning flag, since we're returning whatever value we got anyways
@@ -129,6 +150,7 @@ impl Runtime {
         Ok(res)
     }
 
+    ///Executes both varieties of loop and walks through the nodes in the loop blocks
     fn do_loop(
         &mut self,
         ty: &str,
@@ -184,7 +206,8 @@ impl Runtime {
             _ => Ok(Value::Null),
         }
     }
-    /**Define a function and save it as a variable in the heap */
+
+    ///Defines a function and saves it as a variable in the heap
     fn def_func(
         &mut self,
         name: &Expression,
@@ -207,6 +230,7 @@ impl Runtime {
         }
     }
 
+    ///Performs arithmatic and boolean operations and returns their results
     fn do_operation(
         &mut self,
         opr: &Expression,
@@ -215,15 +239,28 @@ impl Runtime {
         frame: &mut StackFrame,
     ) -> Result<Value, String> {
         match opr {
-            Expression::Equal => {
-                if let ExprNode::Name(n) = left {
+
+            Expression::Equal => match left {
+                ExprNode::Name(n) => {
                     let v = self.walk_tree(&right, frame)?;
                     frame.set_var(n.to_string(), v);
                     Ok(Value::Null)
-                } else {
-                    Err(format!("Expected name, found {:?}", left))
                 }
-            }
+                ExprNode::Index(n, i) => {
+                    let name = if let ExprNode::Name(s) = *n.clone() {
+                        *s
+                    } else {
+                        return Err(format!("Error getting name {:?}", n));
+                    };
+                    let index = self.walk_tree(i, frame)?;
+                    let val = self.walk_tree(right, frame)?;
+                    frame.update_array_index(&name, index, val);
+
+                    Ok(Value::Null)
+                }
+                _ => Err(format!("Error assigning to variable {:?}", left)),
+            },
+
             Expression::Operator(o) => {
                 let l_p = self.walk_tree(&left, frame)?;
                 let r_p = self.walk_tree(&right, frame)?;
@@ -282,6 +319,7 @@ impl Runtime {
         }
     }
 
+    ///Handles keywords like "print" and "return"
     fn keyword(
         &mut self,
         name: &Expression,
@@ -300,15 +338,12 @@ impl Runtime {
                             let tmp = self.walk_tree(&value, frame)?;
                             // println!("DEBUG: tmp={:?}", tmp);
                             match tmp {
-                                Value::EmString(r) => println!("{}", r),
-                                // Value::Char(c) => println!("{}", c),
-                                Value::Float(i) => println!("{}", i),
                                 Value::Name(n) => println!("{}", frame.get_var(&n)),
                                 Value::Null => println!("null"),
                                 Value::Function(_, _, _) => {
                                     println!("{}", self.walk_tree(&value, frame)?)
                                 } // _ => {}
-                                Value::EmBool(b) => println!("{}", b),
+                                _ => println!("{}", tmp),
                             }
                         }
                     }
@@ -324,8 +359,6 @@ impl Runtime {
                         }
                     }
                 }
-                // "true" => return Value::EmBool(true),
-                // "false" => return Value::EmBool(false),
                 _ => {}
             }
         }
@@ -333,7 +366,7 @@ impl Runtime {
         Ok(Value::Null)
     }
 
-    /**Execute a keyword or function call*/
+    ///Executes a keyword or function call
     fn do_call(
         &mut self,
         name: &Expression,
@@ -391,6 +424,7 @@ impl Runtime {
         }
     }
 
+    ///Performs an if statement and any of its relevant branches
     fn do_if(
         &mut self,
         condition: &ExprNode,
@@ -406,8 +440,42 @@ impl Runtime {
             self.walk_tree(branches, frame)
         }
     }
+
+    ///Defines an array and saves it to the current stackframe
+    fn create_array(
+        &mut self,
+        raw: &Vec<ExprNode>,
+        frame: &mut StackFrame,
+    ) -> Result<Value, String> {
+        let mut tmp = vec![];
+        for val in raw.iter() {
+            tmp.push(self.walk_tree(val, frame)?);
+        }
+
+        Ok(Value::EmArray(tmp))
+    }
+
+    ///Returns the value at a given array index
+    fn index_array(
+        &mut self,
+        ident: &ExprNode,
+        index: &ExprNode,
+        frame: &mut StackFrame,
+    ) -> Result<Value, String> {
+        if let Value::EmArray(val) = self.walk_tree(ident, frame)? {
+            if let Value::Float(i) = self.walk_tree(index, frame)? {
+                Ok(val.get(i as usize).unwrap_or(&Value::Null).clone())
+            } else {
+                Err("Identfier wasn't a string, something really broke".to_string())
+            }
+        } else {
+            Err(format!("Array index wasn't a number: {:?}", index))
+        }
+    }
 }
 
+
+///Keeps track of local variables for functions. Currently only created when a function is called
 impl Default for Runtime {
     fn default() -> Self {
         Self::new()
@@ -420,7 +488,6 @@ impl Default for StackFrame {
     }
 }
 
-/**Keeps track of local variables for functions. Currently only created when a function is called. */
 impl StackFrame {
     pub fn new() -> StackFrame {
         StackFrame {
@@ -437,6 +504,22 @@ impl StackFrame {
             &self.stack[name]
         } else {
             &Value::Null
+        }
+    }
+
+    fn update_array_index(&mut self, name: &str, index: Value, val: Value) {
+        let var = self
+            .stack
+            .get_mut(name)
+            .expect(format!("Unable to find variable {}", name).as_str());
+
+        if let Value::Float(f) = index {
+            match var {
+                Value::EmArray(v) => {
+                    v[f as usize] = val;
+                }
+                _ => panic!("Expected array, found {}", var),
+            }
         }
     }
 
