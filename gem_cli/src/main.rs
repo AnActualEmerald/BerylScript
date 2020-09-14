@@ -65,16 +65,18 @@ fn create_examples(path: &PathBuf) {
     println!("Generating example files at {}", path.display());
 
     //check if the directory exists first, create it if not
-    if let Err(_) = fs::read_dir(&path) {
-        fs::create_dir_all(&path)
-            .expect(format!("Unable to create target directory {}", path.display()).as_str());
+    if fs::read_dir(&path).is_err() {
+        fs::create_dir_all(&path).unwrap_or_else(|_| {
+            println!("Unable to create target directory {}", path.display());
+        });
     }
 
     let mut count = 1;
     for ex in examples.iter() {
         let expath = path.join(format!("example{}.em", count));
-        fs::write(&expath, ex)
-            .expect(format!("Error generating example file {}", expath.display()).as_str());
+        fs::write(&expath, ex).unwrap_or_else(|_| {
+            println!("Error generating example file {}", expath.display());
+        });
         count += 1;
     }
 }
@@ -92,6 +94,7 @@ fn repl() -> io::Result<usize> {
         "Welcome to the EmeraldScript REPL v{}!",
         env!("CARGO_PKG_VERSION")
     );
+    println!("do \"gem --help\" to see other commands");
     println!("Type exit or stop to leave\n");
 
     print!(">>> ");
@@ -119,7 +122,7 @@ fn repl() -> io::Result<usize> {
             continue;
         }
 
-        match parser::parse(lexer::run(format!("{}", input).as_str())) {
+        match parser::parse(lexer::run(&input)) {
             Ok(ast) => {
                 if let Err(e) = repl_run(ast, &mut runtime, &mut glob_frame) {
                     println!("{}", e);

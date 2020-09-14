@@ -92,6 +92,7 @@ impl Lexer {
         }
     }
 
+
     ///Loops through the characters in the provided string can outputs a vec of expressions
     pub fn tokenize(&mut self, data: &str) -> Vec<Expression> {
         let mut result = vec![];
