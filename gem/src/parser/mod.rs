@@ -138,22 +138,22 @@ fn def_func(
 /**
  * Reads to the end of the current line, stopping at the first semicolon or lbrace, or the specified delim
  */
-fn read_line(
-    prev: Option<&Expression>,
+fn read_line<'a>(
+    prev: Option<&Vec<Expression>>,
     iter: &mut Peekable<Iter<Expression>>,
     delim: Option<&Expression>,
 ) -> Result<ExprNode, String> {
     //iterate through the next set of expressions until we get to a ';'
-    let mut accum = vec![];
+    let mut accum = if let Some(v) = prev {
+        v.clone()
+    } else {
+        Vec::new()
+    };
     let check = if let Some(e) = delim {
         e.clone()
     } else {
         Expression::Semicolon
     };
-
-    if let Some(v) = prev {
-        accum.push(v.clone());
-    }
 
     for exp in iter.take_while(|e| !(check == **e || Expression::Lbrace == **e)) {
         match exp {
@@ -181,7 +181,7 @@ fn read_line(
             // Expression::BoolOp(_)
             _ => accum.push(exp.clone()),
         }
-        //println!("Accumulated expressions: {:?}", accum);
+        // println!("Accumulated expressions: {:?}", accum);
     }
 
     Ok(expr(&mut accum.iter().peekable(), None)?)
@@ -270,8 +270,13 @@ fn expr(
             }
             Expression::Lbracket => {
                 // println!("current expression: {:?}", cur);
+                // node = read_line(cur, iter, None)?;
                 node = match cur {
-                    Some(Expression::Ident(_)) => index_array(cur.unwrap(), iter)?,
+                    Some(Expression::Ident(_)) => read_line(
+                        Some(&vec![cur.unwrap().clone(), t.unwrap().clone()]),
+                        iter,
+                        None,
+                    )?,
                     _ => make_array(iter)?,
                 }
             }

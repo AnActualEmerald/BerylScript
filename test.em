@@ -3,9 +3,14 @@ fn main() {
   a = i[1];
   b = i[0];
   c = i[1] + i[2];
-  print (10 + 10);
+  print c;
 
-  for(k = 0; k < 3; k = k + 1){
-    print i[k];
-  }
+ bool_thing();
+}
+
+fn bool_thing(){
+  bool = [true, true, true];
+  print bool;
+  bool[0] = false;
+  print bool;
 }

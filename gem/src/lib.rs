@@ -13,7 +13,7 @@ pub fn run(data: String) {
     // println!("Generated tokens: {:?}", tokens);
     match parser::parse(tokens) {
         Ok(ast) => {
-            // println!("{:?}", &ast);
+            println!("{:?}", &ast);
             interpreter::run(ast)
         }
         Err(e) => println!("{}", e),

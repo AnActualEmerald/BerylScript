@@ -229,15 +229,26 @@ impl Runtime {
         frame: &mut StackFrame,
     ) -> Result<Value, String> {
         match opr {
-            Expression::Equal => {
-                return if let ExprNode::Name(n) = left {
+            Expression::Equal => match left {
+                ExprNode::Name(n) => {
                     let v = self.walk_tree(&right, frame)?;
                     frame.set_var(n.to_string(), v);
                     Ok(Value::Null)
-                } else {
-                    Err(format!("Expected name, found {:?}", left))
-                };
-            }
+                }
+                ExprNode::Index(n, i) => {
+                    let name = if let ExprNode::Name(s) = *n.clone() {
+                        *s
+                    } else {
+                        return Err(format!("Error getting name {:?}", n));
+                    };
+                    let index = self.walk_tree(i, frame)?;
+                    let val = self.walk_tree(right, frame)?;
+                    frame.update_array_index(&name, index, val);
+
+                    Ok(Value::Null)
+                }
+                _ => Err(format!("Error assigning to variable {:?}", left)),
+            },
             Expression::Operator(o) => {
                 let l_p = self.walk_tree(&left, frame)?;
                 let r_p = self.walk_tree(&right, frame)?;
@@ -468,6 +479,22 @@ impl StackFrame {
             &self.stack[name]
         } else {
             &Value::Null
+        }
+    }
+
+    fn update_array_index(&mut self, name: &str, index: Value, val: Value) {
+        let mut var = self
+            .stack
+            .get_mut(name)
+            .expect(format!("Unable to find variable {}", name).as_str());
+
+        if let Value::Float(f) = index {
+            match var {
+                Value::EmArray(v) => {
+                    v[f as usize] = val;
+                }
+                _ => panic!("Expected array, found {}", var),
+            }
         }
     }
 
