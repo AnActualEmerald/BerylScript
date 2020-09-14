@@ -6,6 +6,7 @@ use super::parser::ExprNode;
 use std::fmt;
 use std::{cell::RefCell, collections::HashMap};
 
+///Represents everything that exists in the language currently
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 enum Value {
     Null,
@@ -43,10 +44,12 @@ impl std::fmt::Display for Value {
     }
 }
 
+///Stores variables in a hashmap for a given function block. Only created on function call, with the exception of the global frame
 pub struct StackFrame {
     stack: HashMap<String, Value>,
 }
 
+///Handles all of the interpretation, and keeps track of things like function definitions
 pub struct Runtime {
     // tree: ExprNode,
     // stack: Vec<StackFrame>,
@@ -54,6 +57,7 @@ pub struct Runtime {
     returning: bool,
 }
 
+///A run function that accepts a runtime and global frame, mostly for use with the REPL
 pub fn repl_run(
     tree: ExprNode,
     runtime: &mut Runtime,
@@ -65,6 +69,7 @@ pub fn repl_run(
     }
 }
 
+///Walks through the provided tree and executes all the nodes
 pub fn run(tree: ExprNode) {
     let mut r = Runtime::new();
     // r.find_global_vars();
@@ -82,6 +87,7 @@ pub fn run(tree: ExprNode) {
 
 // Basically *is* the interpreter, walks throught the AST and executes the nodes as needed
 impl Runtime {
+    ///Creates a new Runtime with an empty heap
     pub fn new() -> Runtime {
         Runtime {
             heap: HashMap::new(),
@@ -89,6 +95,7 @@ impl Runtime {
         }
     }
 
+    ///Matches the provided node and dispatches functions to handle it
     fn walk_tree(&mut self, node: &ExprNode, frame: &mut StackFrame) -> Result<Value, String> {
         // println!(
         //     "Walking tree: \n    Current node: {:?}\n     Current stack: {:?}",
@@ -143,6 +150,7 @@ impl Runtime {
         Ok(res)
     }
 
+    ///Executes both varieties of loop and walks through the nodes in the loop blocks
     fn do_loop(
         &mut self,
         ty: &str,
@@ -198,7 +206,8 @@ impl Runtime {
             _ => Ok(Value::Null),
         }
     }
-    /**Define a function and save it as a variable in the heap */
+
+    ///Defines a function and saves it as a variable in the heap
     fn def_func(
         &mut self,
         name: &Expression,
@@ -221,6 +230,7 @@ impl Runtime {
         }
     }
 
+    ///Performs arithmatic and boolean operations and returns their results
     fn do_operation(
         &mut self,
         opr: &Expression,
@@ -307,6 +317,7 @@ impl Runtime {
         }
     }
 
+    ///Handles keywords like "print" and "return"
     fn keyword(
         &mut self,
         name: &Expression,
@@ -353,7 +364,7 @@ impl Runtime {
         Ok(Value::Null)
     }
 
-    /**Execute a keyword or function call*/
+    ///Executes a keyword or function call
     fn do_call(
         &mut self,
         name: &Expression,
@@ -413,6 +424,7 @@ impl Runtime {
         }
     }
 
+    ///Performs an if statement and any of its relevant branches
     fn do_if(
         &mut self,
         condition: &ExprNode,
@@ -431,6 +443,7 @@ impl Runtime {
         }
     }
 
+    ///Defines an array and saves it to the current stackframe
     fn create_array(
         &mut self,
         raw: &Vec<ExprNode>,
@@ -444,6 +457,7 @@ impl Runtime {
         Ok(Value::EmArray(tmp))
     }
 
+    ///Returns the value at a given array index
     fn index_array(
         &mut self,
         ident: &ExprNode,
@@ -462,7 +476,7 @@ impl Runtime {
     }
 }
 
-/**Keeps track of local variables for functions. Currently only created when a function is called. */
+///Keeps track of local variables for functions. Currently only created when a function is called
 impl StackFrame {
     pub fn new() -> StackFrame {
         StackFrame {
@@ -483,7 +497,7 @@ impl StackFrame {
     }
 
     fn update_array_index(&mut self, name: &str, index: Value, val: Value) {
-        let mut var = self
+        let var = self
             .stack
             .get_mut(name)
             .expect(format!("Unable to find variable {}", name).as_str());

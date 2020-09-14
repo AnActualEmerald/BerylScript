@@ -12,6 +12,8 @@ use std::str::Chars;
 // Enums are more idomatic and make the resulting Vec much easier to understand
 // I may need more types to make things easier to work with but for now I think
 // this should suffice
+
+///Describes the different tokens that can be generated from the source code
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Expression {
     Ident(String),
@@ -57,6 +59,7 @@ pub fn run(data: &str) -> Vec<Expression> {
     Lexer::new().tokenize(data)
 }
 
+///Describes the current state of the lexer
 #[derive(PartialEq, Debug)]
 enum State {
     Nothing,
@@ -66,6 +69,7 @@ enum State {
     Comment,
 }
 
+///Handles the tokenization of the source code
 struct Lexer {
     current_state: State,
     token: String,
@@ -76,6 +80,7 @@ struct Lexer {
 }
 
 impl Lexer {
+    ///Creates a new lexer and initializes the regular expressions
     pub fn new() -> Lexer {
         Lexer {
             current_state: State::Nothing,
@@ -87,10 +92,7 @@ impl Lexer {
         }
     }
 
-    pub fn run(data: &str) -> Vec<Expression> {
-        Lexer::new().tokenize(data)
-    }
-
+    ///Loops through the characters in the provided string can outputs a vec of expressions
     pub fn tokenize(&mut self, data: &str) -> Vec<Expression> {
         let mut result = vec![];
 
@@ -150,6 +152,7 @@ impl Lexer {
         result //return the result
     }
 
+    ///Handles generation of number literals
     fn num_handle(&mut self, c: char, iter: &mut Peekable<Chars<'_>>) -> Option<Expression> {
         let result: Option<Expression>;
         if c.is_whitespace() || self.valid_symb.is_match(&c.to_string()) {
@@ -197,6 +200,7 @@ impl Lexer {
         result
     }
 
+    ///Handles the generation of identifiers and keywords
     fn name_handle(&mut self, c: char) -> Option<Expression> {
         let result: Option<Expression>;
         if c.is_whitespace() || self.valid_symb.is_match(&c.to_string()) {
@@ -244,6 +248,7 @@ impl Lexer {
         result
     }
 
+    ///The default state of the lexer, handles symbols and decides when to change states
     fn nothing_handle(&mut self, c: char, ch: &mut Peekable<Chars<'_>>) -> Option<Expression> {
         // println!(
         //     "This is what it looks like when you call char.to_string(): {:?}",
@@ -329,11 +334,6 @@ impl Lexer {
                     None
                 }
             }
-
-            // '#' => {
-            //     self.current_state = State::Comment;
-            //     None
-            // }
             _ => {
                 self.token.push(c);
                 if self.valid_chars.is_match(&self.token) {

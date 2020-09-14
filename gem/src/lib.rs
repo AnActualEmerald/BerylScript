@@ -7,6 +7,7 @@ pub mod parser;
 #[cfg(test)]
 mod bench;
 
+///Runs the lexer, parser, and interpreter on the provided string
 pub fn run(data: String) {
     // println!("Got data: {}", data);
     let tokens = lexer::run(&data);

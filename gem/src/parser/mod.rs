@@ -9,6 +9,7 @@ use std::slice::Iter;
 
 //making the nodes hold the actual values instead of the Expressions might be worth it to make
 //interpreting easier
+///Enum with variants for each type of statement or literal in the lang
 #[derive(PartialEq, Debug, Clone, PartialOrd)]
 pub enum ExprNode {
     Operation(Box<Expression>, Box<ExprNode>, Box<ExprNode>), //Operator, Left side, Right side
@@ -31,6 +32,7 @@ pub enum ExprNode {
     EOF,
 }
 
+///Starts the parser
 pub fn parse(tokens: Vec<Expression>) -> Result<ExprNode, String> {
     //let root = vec!();
     let iter = tokens.iter();
@@ -40,6 +42,7 @@ pub fn parse(tokens: Vec<Expression>) -> Result<ExprNode, String> {
     // node
 }
 
+///Loops through expressions to generate all of the nodes in a block of code
 fn make_block(iter: &mut Peekable<Iter<Expression>>) -> Result<ExprNode, String> {
     let mut root = vec![];
 
@@ -67,6 +70,7 @@ fn make_block(iter: &mut Peekable<Iter<Expression>>) -> Result<ExprNode, String>
     Ok(ExprNode::Block(root))
 }
 
+///Handles all the different keywords
 fn key_word(
     iter: &mut Peekable<Iter<'_, Expression>>,
     cur: Option<&Expression>,
@@ -102,6 +106,7 @@ fn key_word(
     }
 }
 
+///Generates the nodes needed to define a function
 fn def_func(
     iter: &mut Peekable<Iter<'_, Expression>>,
     _cur: Option<&Expression>,
@@ -135,9 +140,7 @@ fn def_func(
     Ok(ExprNode::Func(Box::new(name), params, Box::new(body)))
 }
 
-/**
- * Reads to the end of the current line, stopping at the first semicolon or lbrace, or the specified delim
- */
+///Reads to the end of the current line, stopping at the first semicolon or lbrace, or the specified deliminator
 fn read_line<'a>(
     prev: Option<&Vec<Expression>>,
     iter: &mut Peekable<Iter<Expression>>,
