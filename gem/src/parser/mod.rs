@@ -98,7 +98,7 @@ fn key_word(
         }
         "for" => Ok(ExprNode::Loop(
             Box::new("for".to_string()),
-            Box::new(make_for_loop(iter, cur)?),
+            Box::new(make_for_loop(iter)?),
             Box::new(make_block(iter)?),
         )),
         "if" => make_if(iter),
@@ -341,14 +341,11 @@ fn find_params(
     Ok(params)
 }
 
-fn make_for_loop(
-    iter: &mut Peekable<Iter<'_, Expression>>,
-    cur: Option<&Expression>,
-) -> Result<ExprNode, String> {
+fn make_for_loop(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, String> {
     match iter.peek() {
         Some(Expression::Lparen) => {
             iter.next(); //skip the lparen after the "for" keyword
-            let mut name = iter.next(); //grab the next expression to pass it in as cur
+            let name = iter.next(); //grab the next expression to pass it in as cur
             let dec = expr(iter, name)?; //get the declaration expression (i = 0)
             if let ExprNode::Operation(op, _, _) = &dec {
                 //double check to make sure this was an assignment op
@@ -413,11 +410,17 @@ fn make_if(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, String
 fn make_array(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, String> {
     let mut res = vec![];
     loop {
-        if let Some(Expression::Rbracket) = iter.peek() {
-            iter.next();
-            return Ok(ExprNode::Array(res));
-        } else {
-            res.push(expr(iter, None)?);
+        match iter.peek() {
+            Some(Expression::Rbracket) => {
+                iter.next();
+                return Ok(ExprNode::Array(res));
+            }
+            Some(Expression::Lbracket) => {
+                iter.next();
+                res.push(make_array(iter)?)
+            }
+            None => return Err("Unexpected end of file".to_owned()),
+            _ => res.push(expr(iter, None)?),
         }
     }
 }

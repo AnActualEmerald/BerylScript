@@ -48,7 +48,7 @@ fn assign_vars() {
     let mut stack = StackFrame {
         stack: HashMap::new(),
     };
-    r.walk_tree(&op, &mut stack);
+    r.walk_tree(&op, &mut stack).expect("Unable to walk tree");
     assert_eq!(stack.get_var(&"test"), &expected);
 }
 
@@ -78,7 +78,8 @@ fn looping() {
         stack: HashMap::new(),
     };
     stack.set_var(String::from("i"), Value::Float(0.0 as f32));
-    r.do_loop(&ty, &condition, &block, &mut stack);
+    r.do_loop(&ty, &condition, &block, &mut stack)
+        .expect("Error executing loop");
 
     assert_eq!(*stack.get_var("i"), Value::Float(10.0));
 
@@ -89,7 +90,7 @@ fn looping() {
         let mut runtime = Runtime::new();
         let mut frame = StackFrame::new();
 
-        repl_run(dummy, &mut runtime, &mut frame);
+        repl_run(dummy, &mut runtime, &mut frame).expect("Unable to perform run");
 
         return assert_eq!(Value::Float(10.0), *frame.get_var("result"));
     }
