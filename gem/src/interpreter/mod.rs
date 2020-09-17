@@ -239,7 +239,6 @@ impl Runtime {
         frame: &mut StackFrame,
     ) -> Result<Value, String> {
         match opr {
-
             Expression::Equal => match left {
                 ExprNode::Name(n) => {
                     let v = self.walk_tree(&right, frame)?;
@@ -462,6 +461,10 @@ impl Runtime {
         index: &ExprNode,
         frame: &mut StackFrame,
     ) -> Result<Value, String> {
+        //Currently this function operates on an identifier and an index in order to get the
+        //data out of the array, but in order to support things like multidimensional indexing
+        //and indexing into things other than arrays, I feel that this will need to be revised.
+        //Is seems like this would be a good chance to use traits and make this function more generic.
         if let Value::EmArray(val) = self.walk_tree(ident, frame)? {
             if let Value::Float(i) = self.walk_tree(index, frame)? {
                 Ok(val.get(i as usize).unwrap_or(&Value::Null).clone())
@@ -473,7 +476,6 @@ impl Runtime {
         }
     }
 }
-
 
 ///Keeps track of local variables for functions. Currently only created when a function is called
 impl Default for Runtime {

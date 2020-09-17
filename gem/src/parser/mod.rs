@@ -293,6 +293,7 @@ fn expr(
     Ok(node)
 }
 
+//I really don't like the way array inexing works and it should be changed to be more flexible
 fn index_array(
     ident: &Expression,
     iter: &mut Peekable<Iter<'_, Expression>>,

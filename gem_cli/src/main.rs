@@ -16,6 +16,7 @@ fn main() {
     (version: env!("CARGO_PKG_VERSION"))
     (author: "Emerald <@Emerald#6666>")
     (about: "Runs emerald script programs and other helpful stuff")
+    (@arg debug: -d --debug "Display debugging information")
     (@subcommand examples =>
         (about: "Generates some example files")
         (@arg PATH: "Where to generate the files, defaults to current directory"))
@@ -25,13 +26,15 @@ fn main() {
     )
     .get_matches();
 
+    let debug = matches.is_present("debug");
+
     if let Some(sub) = matches.subcommand_matches("run") {
         let path = sub.value_of("PATH").expect("Path should not be NONE");
         if path.ends_with(".em") {
             let data = fs::read_to_string(&path).unwrap_or_else(|e| {
                 panic!("Couldn't read file {}: {}", path, e);
             });
-            gem::run(data);
+            gem::run(data, debug);
             return;
         } else {
             println!("Not a valid .em file!");
@@ -50,7 +53,7 @@ fn main() {
         create_examples(&path);
         return;
     }
-    repl().expect("REPL encountered an issue: ");
+    repl(debug).expect("REPL encountered an issue: ");
 }
 
 ///Generates example files in the target directory or one provided by the user
@@ -82,7 +85,7 @@ fn create_examples(path: &PathBuf) {
 }
 
 ///Runs a REPL on the command line
-fn repl() -> io::Result<usize> {
+fn repl(debug: bool) -> io::Result<usize> {
     use gem::interpreter::*;
     use gem::{lexer, parser};
     let mut runtime = Runtime::new();
@@ -112,7 +115,7 @@ fn repl() -> io::Result<usize> {
             multiline.pop();
         }
 
-        if ["exit\n", "stop\n"].contains(&input.as_str()) {
+        if ["exit", "stop"].iter().any(|v| input.contains(v)) {
             break;
         } else if multiline.contains(&true) {
             for _ in multiline.iter() {
@@ -121,9 +124,15 @@ fn repl() -> io::Result<usize> {
             io::stdout().flush().expect("Couldn't flush stdout");
             continue;
         }
-
-        match parser::parse(lexer::run(&input)) {
+        let tokens = lexer::run(&input);
+        if debug {
+            println!("Generated tokens: {:?}", tokens);
+        }
+        match parser::parse(tokens) {
             Ok(ast) => {
+                if debug {
+                    println!("Generated AST: {:?}", ast);
+                }
                 if let Err(e) = repl_run(ast, &mut runtime, &mut glob_frame) {
                     println!("{}", e);
                 }
