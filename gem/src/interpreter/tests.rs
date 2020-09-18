@@ -112,7 +112,7 @@ fn if_elif_else() {
 
         if let Value::EmArray(v) = frame.get_var("res") {
             for val in v {
-                match val {
+                match **val {
                     Value::EmBool(b) => return assert!(b),
                     _ => {}
                 }

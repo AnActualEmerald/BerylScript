@@ -17,7 +17,7 @@ pub enum Value {
     Float(f32),
     EmString(String),
     EmBool(bool),
-    EmArray(Vec<Value>),
+    EmArray(Vec<Box<Value>>),
     //Char(u8),
     Name(String),
     Function(Expression, Vec<Value>, ExprNode),
@@ -53,6 +53,22 @@ impl types::Indexable<Value> for Value {
         match self {
             Value::EmArray(v) => {
                 if let Some(val) = v.get(index) {
+                    Ok(val)
+                } else {
+                    Err(format!(
+                        "Index {} out of bounds (I hope I can include line numbers some day)",
+                        index
+                    ))
+                }
+            }
+            _ => Err(format!("Type {} isn't indexable", self)),
+        }
+    }
+
+    fn index_mut<'a>(&'a mut self, index: usize) -> Result<&'a mut Value, String> {
+        match self {
+            Value::EmArray(v) => {
+                if let Some(val) = v.get_mut(index) {
                     Ok(val)
                 } else {
                     Err(format!(
@@ -279,6 +295,15 @@ impl Runtime {
 
                     Ok(Value::Null)
                 }
+                ExprNode::Operation(o, l, r) => {
+                    if **o != Expression::Lbracket {
+                        Err(format!("Cannot assign value to operation {:?}", left))
+                    } else {
+                        let val = self.walk_tree(right, frame)?;
+                        frame.update_nested_array(l, r, Some(val), true);
+                        Ok(Value::Null)
+                    }
+                }
                 _ => Err(format!("Error assigning to variable {:?}", left)),
             },
 
@@ -325,7 +350,6 @@ impl Runtime {
             Expression::BoolOp(op) => {
                 let l_p = self.walk_tree(&left, frame);
                 let r_p = self.walk_tree(&right, frame);
-                // println!("{} {} {}", l_p, op, r_p);
                 match op.as_str() {
                     "==" => Ok(Value::EmBool(l_p == r_p)),
                     "!=" => Ok(Value::EmBool(l_p != r_p)),
@@ -472,7 +496,7 @@ impl Runtime {
     ) -> Result<Value, String> {
         let mut tmp = vec![];
         for val in raw.iter() {
-            tmp.push(self.walk_tree(val, frame)?);
+            tmp.push(Box::new(self.walk_tree(val, frame)?));
         }
 
         Ok(Value::EmArray(tmp))
@@ -485,10 +509,6 @@ impl Runtime {
         index: &ExprNode,
         frame: &mut StackFrame,
     ) -> Result<Value, String> {
-        //Currently this function operates on an identifier and an index in order to get the
-        //data out of the array, but in order to support things like multidimensional indexing
-        //and indexing into things other than arrays, I feel that this will need to be revised.
-        //Is seems like this would be a good chance to use traits and make this function more generic.
         let array = self.walk_tree(ident, frame)?;
         if let Value::Float(f) = self.walk_tree(index, frame)? {
             Ok(array.index(f as usize)?.clone())
@@ -539,10 +559,61 @@ impl StackFrame {
         if let Value::Float(f) = index {
             match var {
                 Value::EmArray(v) => {
-                    v[f as usize] = val;
+                    v[f as usize] = Box::new(val);
                 }
                 _ => panic!("Expected array, found {}", var),
             }
+        }
+    }
+
+    fn update_nested_array(
+        &mut self,
+        ident: &ExprNode,
+        index: &ExprNode,
+        val: Option<Value>,
+        first: bool,
+    ) -> Option<&mut Box<Value>> {
+        match ident {
+            ExprNode::Operation(o, l, r) => {
+                if **o != Expression::Lbracket {
+                    panic!("Found operation when assigning to array: {:?}", ident);
+                } else {
+                    let var = self.update_nested_array(l, r, None, false)?;
+                    let i = match index {
+                        ExprNode::NumLiteral(f) => **f as usize,
+                        _ => panic!("Expected number literal, found {:?}", index),
+                    };
+                    match &mut **var {
+                        Value::EmArray(v) => {
+                            if first {
+                                v[i] = Box::new(val.unwrap());
+                                None
+                            } else {
+                                v.get_mut(i)
+                            }
+                        }
+                        n => panic!("Expected array, found {}", n),
+                    }
+                }
+            }
+            ExprNode::Name(n) => {
+                let i = match index {
+                    ExprNode::NumLiteral(f) => **f as usize,
+                    _ => panic!("Expected number literal, found {:?}", index),
+                };
+
+                let var = self
+                    .stack
+                    .get_mut(&**n)
+                    .expect(format!("Unable to find variable {}", n).as_str());
+
+                match var {
+                    Value::EmArray(v) => v.get_mut(i),
+                    _ => panic!("Expected array, found {}", var),
+                }
+            }
+
+            _ => panic!("Unexpected node: {:?}", ident),
         }
     }
 

@@ -340,6 +340,7 @@ fn index_array(
         }
         Ok(build_chain_back(ident, &mut multidex.iter().rev().peekable()).unwrap())
     } else {
+        //Don't neext to do all that fancy stuff if there's only one index instruction
         Ok(ExprNode::Index(Box::new(make_node(ident)), Box::new(index)))
     }
 }
