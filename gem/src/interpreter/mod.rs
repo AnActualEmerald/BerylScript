@@ -1,20 +1,24 @@
 #[cfg(test)]
 mod tests;
+mod types;
+
+use crate::interpreter::types::Indexable;
 
 use super::lexer::Expression;
 use super::parser::ExprNode;
+
 use std::fmt;
 use std::{cell::RefCell, collections::HashMap};
 
 ///Represents everything that exists in the language currently
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
-enum Value {
+pub enum Value {
     Null,
     Float(f32),
     EmString(String),
     EmBool(bool),
     EmArray(Vec<Value>),
-    // Char(u8),
+    //Char(u8),
     Name(String),
     Function(Expression, Vec<Value>, ExprNode),
 }
@@ -40,6 +44,24 @@ impl std::fmt::Display for Value {
 
                 write!(f, "{}", tmp)
             }
+        }
+    }
+}
+
+impl types::Indexable<Value> for Value {
+    fn index<'a>(&'a self, index: usize) -> Result<&'a Value, String> {
+        match self {
+            Value::EmArray(v) => {
+                if let Some(val) = v.get(index) {
+                    Ok(val)
+                } else {
+                    Err(format!(
+                        "Index {} out of bounds (I hope I can include line numbers some day)",
+                        index
+                    ))
+                }
+            }
+            _ => Err(format!("Type {} isn't indexable", self)),
         }
     }
 }
@@ -465,14 +487,11 @@ impl Runtime {
         //data out of the array, but in order to support things like multidimensional indexing
         //and indexing into things other than arrays, I feel that this will need to be revised.
         //Is seems like this would be a good chance to use traits and make this function more generic.
-        if let Value::EmArray(val) = self.walk_tree(ident, frame)? {
-            if let Value::Float(i) = self.walk_tree(index, frame)? {
-                Ok(val.get(i as usize).unwrap_or(&Value::Null).clone())
-            } else {
-                Err("Identfier wasn't a string, something really broke".to_string())
-            }
+        let array = self.walk_tree(ident, frame)?;
+        if let Value::Float(f) = self.walk_tree(index, frame)? {
+            Ok(array.index(f as usize)?.clone())
         } else {
-            Err(format!("Array index wasn't a number: {:?}", index))
+            Err(format!("Index was not a numeber"))
         }
     }
 }
