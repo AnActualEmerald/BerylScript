@@ -336,6 +336,8 @@ impl Runtime {
                     _ => Err(format!("Invalid Operator: {}", op)),
                 }
             }
+
+            Expression::Lbracket => Ok(self.index_array(left, right, frame)?),
             _ => Ok(Value::Null),
         }
     }

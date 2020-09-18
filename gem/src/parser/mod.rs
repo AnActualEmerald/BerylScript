@@ -293,7 +293,33 @@ fn expr(
     Ok(node)
 }
 
-//I really don't like the way array inexing works and it should be changed to be more flexible
+fn build_chain_back(
+    ident: &Expression,
+    iter: &mut Peekable<std::iter::Rev<Iter<'_, ExprNode>>>,
+) -> Option<ExprNode> {
+    if let Some(_) = iter.peek() {
+        let index = iter.next().unwrap();
+
+        if let Some(op) = build_chain_back(ident, iter) {
+            //If the next call in the chain returns something, build it normally
+            Some(ExprNode::Operation(
+                Box::new(Expression::Lbracket),
+                Box::new(op),
+                Box::new(index.clone()),
+            ))
+        } else {
+            //If not, we've reached the end and shoud return the root node with the actual identifier
+            Some(ExprNode::Operation(
+                Box::new(Expression::Lbracket),
+                Box::new(make_node(ident)),
+                Box::new(index.clone()),
+            ))
+        }
+    } else {
+        None
+    }
+}
+
 fn index_array(
     ident: &Expression,
     iter: &mut Peekable<Iter<'_, Expression>>,
@@ -302,9 +328,20 @@ fn index_array(
     if let Some(Expression::Lbracket) = iter.peek() {
         iter.next();
     }
+    let mut multidex = vec![];
     let index = expr(iter, None)?;
-
-    Ok(ExprNode::Index(Box::new(make_node(ident)), Box::new(index)))
+    iter.next(); //skip the closing rbracket
+    if let Some(Expression::Lbracket) = iter.peek() {
+        //accumulate all of the index operations
+        multidex.push(index);
+        while let Some(Expression::Lbracket) = iter.next() {
+            multidex.push(expr(iter, None)?);
+            iter.next(); //skip the closing rbracket
+        }
+        Ok(build_chain_back(ident, &mut multidex.iter().rev().peekable()).unwrap())
+    } else {
+        Ok(ExprNode::Index(Box::new(make_node(ident)), Box::new(index)))
+    }
 }
 
 fn make_node(exp: &Expression) -> ExprNode {
