@@ -21,6 +21,7 @@ pub enum Expression {
     Word(String),
     Key(String),
     Operator(char),
+    CompoundOp(String),
     BoolOp(String),
     Equal,
     Rparen,
@@ -91,7 +92,6 @@ impl Lexer {
             check: false,
         }
     }
-
 
     ///Loops through the characters in the provided string can outputs a vec of expressions
     pub fn tokenize(&mut self, data: &str) -> Vec<Expression> {
@@ -281,15 +281,66 @@ impl Lexer {
                 }
             }
 
-            '*' | '+' | '-' | '.' => Some(Expression::Operator(c)),
-            '/' => {
+            '*' => {
                 if let Some(sym) = ch.peek() {
-                    if *sym == '/' {
+                    if *sym == '=' {
                         ch.next();
-                        self.current_state = State::Comment;
-                        None
+                        Some(Expression::CompoundOp("*=".to_owned()))
                     } else {
                         Some(Expression::Operator(c))
+                    }
+                } else {
+                    None
+                }
+            }
+            '+' => {
+                if let Some(sym) = ch.peek() {
+                    match sym {
+                        '=' => {
+                            ch.next();
+                            Some(Expression::CompoundOp("+=".to_owned()))
+                        }
+                        '+' => {
+                            ch.next();
+                            Some(Expression::CompoundOp("++".to_owned()))
+                        }
+                        _ => Some(Expression::Operator(c)),
+                    }
+                } else {
+                    None
+                }
+            }
+            '-' => {
+                if let Some(sym) = ch.peek() {
+                    match sym {
+                        '=' => {
+                            ch.next();
+                            Some(Expression::CompoundOp("-=".to_owned()))
+                        }
+                        '-' => {
+                            ch.next();
+                            Some(Expression::CompoundOp("--".to_owned()))
+                        }
+                        _ => Some(Expression::Operator(c)),
+                    }
+                } else {
+                    None
+                }
+            }
+            '.' => Some(Expression::Operator(c)),
+            '/' => {
+                if let Some(sym) = ch.peek() {
+                    match sym {
+                        '/' => {
+                            ch.next();
+                            self.current_state = State::Comment;
+                            None
+                        }
+                        '=' => {
+                            ch.next();
+                            Some(Expression::CompoundOp("/=".to_owned()))
+                        }
+                        _ => Some(Expression::Operator(c)),
                     }
                 } else {
                     None

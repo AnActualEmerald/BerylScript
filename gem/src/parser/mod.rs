@@ -174,6 +174,11 @@ fn read_line<'a>(
                     Box::new(read_line(None, iter, delim)?),
                 ))
             }
+            Expression::CompoundOp(_) => {
+                let left = expr(&mut accum.iter().peekable(), None)?;
+                // let right = read_line(None, iter, delim)?;
+                return make_compound_op(left, exp, iter);
+            }
             Expression::Equal => {
                 return Ok(ExprNode::Operation(
                     Box::new(exp.clone()),
@@ -231,6 +236,9 @@ fn expr(
                     Box::new(make_node(cur.unwrap())),
                     Box::new(read_line(None, iter, None)?),
                 )
+            }
+            Expression::CompoundOp(_) => {
+                node = make_compound_op(make_node(cur.unwrap()), t.unwrap(), iter)?;
             }
             Expression::BoolOp(_) => {
                 node = ExprNode::Operation(
@@ -291,6 +299,65 @@ fn expr(
     }
 
     Ok(node)
+}
+
+fn make_compound_op(
+    ident: ExprNode,
+    compop: &Expression,
+    iter: &mut Peekable<Iter<'_, Expression>>,
+) -> Result<ExprNode, String> {
+    //idk if this is good or not but I don't see why such a niche function needs to be defined outside
+    //of the only place it's ever used
+    let make_op = |op, right| {
+        ExprNode::Operation(
+            Box::new(Expression::Equal),
+            Box::new(ident.clone()),
+            Box::new(ExprNode::Operation(
+                Box::new(op),
+                Box::new(ident),
+                Box::new(right),
+            )),
+        )
+    };
+
+    if let Expression::CompoundOp(tmp) = compop {
+        match tmp.as_str() {
+            "+=" => {
+                let op = Expression::Operator('+');
+                let right = read_line(None, iter, None)?;
+                //converts 'x += y' to 'x = x + y'
+                Ok(make_op(op, right))
+            }
+            "-=" => {
+                let op = Expression::Operator('-');
+                let right = read_line(None, iter, None)?;
+                Ok(make_op(op, right))
+            }
+            "*=" => {
+                let op = Expression::Operator('*');
+                let right = read_line(None, iter, None)?;
+                Ok(make_op(op, right))
+            }
+            "/=" => {
+                let op = Expression::Operator('/');
+                let right = read_line(None, iter, None)?;
+                Ok(make_op(op, right))
+            }
+            "++" => {
+                let op = Expression::Operator('+');
+                let right = ExprNode::NumLiteral(Box::new(1.0));
+                Ok(make_op(op, right))
+            }
+            "--" => {
+                let op = Expression::Operator('-');
+                let right = ExprNode::NumLiteral(Box::new(1.0));
+                Ok(make_op(op, right))
+            }
+            _ => Err(format!("Unknown compound operator {}", tmp)),
+        }
+    } else {
+        Err(format!("Compound op wasn't a compound op"))
+    }
 }
 
 fn build_chain_back(
