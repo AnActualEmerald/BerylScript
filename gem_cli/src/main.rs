@@ -61,6 +61,7 @@ fn main() {
 
 ///Generates example files in the target directory or one provided by the user
 fn create_examples(path: &PathBuf) {
+    //big fan of this macro, makes it easy to include files in the binary
     let examples = [
         include_str!("examples/example1.em"),
         include_str!("examples/example2.em"),

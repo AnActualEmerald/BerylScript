@@ -65,6 +65,33 @@ impl Repl {
                         }
 
                         line => {
+                            if line.starts_with("example") {
+                                let parts = line.split_whitespace();
+                                for p in parts {
+                                    match p.parse::<usize>() {
+                                        Ok(v) => {
+                                            let ex = self.get_example(v - 1);
+                                            // println!("ex: {}", ex);
+                                            // data = String::new();
+                                            // data.push_str(ex);
+                                            data = rl
+                                                .readline_with_initial("ex: ", (&ex, ""))
+                                                .unwrap();
+                                            //very useful library
+                                            Term::stdout()
+                                                .move_cursor_down(
+                                                    data.chars().filter(|v| *v == '\n').count(),
+                                                )
+                                                .expect("unable to move cursor");
+                                            break;
+                                        }
+                                        Err(_) => {
+                                            continue;
+                                        }
+                                    }
+                                }
+                            }
+
                             data.push_str(&raw);
                             //do repl stuf here
                             if line.ends_with("{") {
@@ -85,26 +112,8 @@ impl Repl {
                                 prompt = "<== ".to_owned();
                             }
 
-                            let tokens = lexer::run(&data);
+                            self.execute(&data, debug);
                             data = String::new();
-                            if debug {
-                                println!("Generated tokens: {:?}", tokens);
-                            }
-                            match parser::parse(tokens) {
-                                Ok(ast) => {
-                                    if debug {
-                                        println!("Generated AST: {:?}", ast);
-                                    }
-
-                                    println!("");
-                                    match repl_run(ast, &mut self.runtime, &mut self.glob_frame) {
-                                        Ok(_) => {}
-                                        Err(e) => println!("{}", e),
-                                    }
-                                    println!("");
-                                }
-                                Err(e) => println!("{}", e),
-                            }
 
                             rl.add_history_entry(line);
                         }
@@ -119,6 +128,47 @@ impl Repl {
             }
 
             rl.save_history(&self.cache).unwrap();
+        }
+    }
+
+    fn get_example(&self, ex: usize) -> String {
+        let examples = vec![
+            "i = 0;\nprint i;",
+            "for(i = 0; i < 10; i++){ \n\tprint i; \n\t}",
+            "fn hello_world(){ \n\tprint \"hello world\"; \n\t} \n\nhello_world();",
+        ];
+
+        if let Some(v) = examples.get(ex) {
+            [
+                v,
+                "//press enter to run example, or use the arrow keys to go back and edit it",
+            ]
+            .join("\n")
+        } else {
+            "Couldn't find a example for that number!".to_owned()
+        }
+    }
+
+    fn execute(&mut self, data: &str, debug: bool) {
+        let tokens = lexer::run(&data);
+
+        if debug {
+            println!("Generated tokens: {:?}", tokens);
+        }
+        match parser::parse(tokens) {
+            Ok(ast) => {
+                if debug {
+                    println!("Generated AST: {:?}", ast);
+                }
+
+                println!("");
+                match repl_run(ast, &mut self.runtime, &mut self.glob_frame) {
+                    Ok(_) => {}
+                    Err(e) => println!("{}", e),
+                }
+                println!("");
+            }
+            Err(e) => println!("{}", e),
         }
     }
 }
