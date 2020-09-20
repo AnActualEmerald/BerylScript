@@ -40,19 +40,22 @@ impl Repl {
             env!("CARGO_PKG_VERSION")
         );
         println!("do \"gem --help\" to see other commands");
-        println!("Type exit or stop to leave\n");
+        println!("Type exit or stop to leave, or help for more info\n");
         let mut prompt = "<== ".to_owned();
         let mut data = String::new();
         loop {
             let input = rl.readline(&prompt);
             match input {
                 Ok(raw) => {
-                    data.push_str(&raw);
                     match raw.as_str() {
+                        "help" => {
+                            println!("Possible commands are:\t\n'help'         => display this message\t\n'exit', 'stop' => leaves Beryl\t\n'clear'        => clears the screen\n");
+                        }
                         "exit" | "stop" => break,
                         "clear" => {
                             let buf = Term::stdout();
                             buf.clear_screen().expect("Unable to clear console");
+
                             println!(
                                 "Welcome to Beryl, the interactive EmeraldScript interpreter v{}!",
                                 env!("CARGO_PKG_VERSION")
@@ -62,6 +65,7 @@ impl Repl {
                         }
 
                         line => {
+                            data.push_str(&raw);
                             //do repl stuf here
                             if line.ends_with("{") {
                                 self.multiline.push(true);
