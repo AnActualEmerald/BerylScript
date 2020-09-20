@@ -11,3 +11,4 @@ gem = {path = "../gem"}
 clap = "2.33.0"
 rustyline = "6.3.0"
 directories = "3.0.1"
+console = "0.12.0"
