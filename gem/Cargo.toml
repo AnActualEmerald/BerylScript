@@ -1,6 +1,6 @@
 [package]
 name = "gem"
-version = "0.0.3"
+version = "0.0.4"
 description = "A simple interpreted language written entirely in rust"
 keywords = ["parser", "lexer", "interpeter", "language"]
 authors = ["AnActualEmerald <kevinliger13@gmail.com>"]
