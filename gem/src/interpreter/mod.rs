@@ -125,6 +125,8 @@ pub fn run(tree: ExprNode) {
 
 // Basically *is* the interpreter, walks throught the AST and executes the nodes as needed
 impl Runtime {
+    //TODO: Reduce the number of copies ins this code
+
     ///Creates a new Runtime with an empty heap
     pub fn new() -> Runtime {
         Runtime {
@@ -280,8 +282,8 @@ impl Runtime {
             Expression::Equal => match left {
                 ExprNode::Name(n) => {
                     let v = self.walk_tree(&right, frame)?;
-                    frame.set_var(n.to_string(), v);
-                    Ok(Value::Null)
+                    frame.set_var(n.to_string(), v.clone());
+                    Ok(v)
                 }
                 ExprNode::Index(n, i) => {
                     let name = if let ExprNode::Name(s) = *n.clone() {
@@ -291,9 +293,9 @@ impl Runtime {
                     };
                     let index = self.walk_tree(i, frame)?;
                     let val = self.walk_tree(right, frame)?;
-                    frame.update_array_index(&name, index, val);
+                    frame.update_array_index(&name, index, val.clone());
 
-                    Ok(Value::Null)
+                    Ok(val)
                 }
                 ExprNode::Operation(o, l, r) => {
                     if **o != Expression::Lbracket {
@@ -384,14 +386,19 @@ impl Runtime {
                         _ => {
                             let tmp = self.walk_tree(&value, frame)?;
                             // println!("DEBUG: tmp={:?}", tmp);
-                            match tmp {
-                                Value::Name(n) => println!("{}", frame.get_var(&n)),
-                                Value::Null => println!("null"),
-                                Value::Function(_, _, _) => {
-                                    println!("{}", self.walk_tree(&value, frame)?)
-                                } // _ => {}
-                                _ => println!("{}", tmp),
-                            }
+                            print!("{}", tmp);
+                        }
+                    }
+                }
+                "println" => {
+                    match value {
+                        ExprNode::Call(n, args) => {
+                            println!("{}", self.do_call(n, args, frame)?);
+                        }
+                        _ => {
+                            let tmp = self.walk_tree(&value, frame)?;
+                            // println!("DEBUG: tmp={:?}", tmp);
+                            println!("{}", tmp);
                         }
                     }
                 }

@@ -161,9 +161,8 @@ impl Repl {
                     println!("Generated AST: {:?}", ast);
                 }
 
-                println!("");
                 match repl_run(ast, &mut self.runtime, &mut self.glob_frame) {
-                    Ok(_) => {}
+                    Ok(v) => println!("\n==> {}", v),
                     Err(e) => println!("{}", e),
                 }
                 println!("");

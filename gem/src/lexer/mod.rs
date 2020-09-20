@@ -166,7 +166,7 @@ impl Lexer {
             result = Some(Expression::Number(
                 self.token.parse::<f32>().unwrap_or_else(|e| {
                     println!(
-                        "Got this error message ({}) when parsing this: {}",
+                        "Got this er!ror message ({}) when parsing this: {}",
                         e, self.token
                     );
 
@@ -215,7 +215,7 @@ impl Lexer {
                     result = Some(Expression::Key(self.token.to_string()));
                     self.token.clear();
                 }
-                "print" => {
+                "print" | "println" => {
                     result = Some(Expression::Key(self.token.to_string()));
                     self.token.clear();
                 }

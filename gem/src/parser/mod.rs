@@ -77,7 +77,7 @@ fn key_word(
     word: &str,
 ) -> Result<ExprNode, String> {
     match word.trim() {
-        "print" => Ok(ExprNode::Call(
+        "print" | "println" => Ok(ExprNode::Call(
             Box::new(Expression::Key(word.to_owned())),
             vec![read_line(None, iter, None)?],
         )),
