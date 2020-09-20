@@ -2,8 +2,6 @@ mod beryl;
 
 use std::env;
 use std::fs;
-use std::io;
-use std::io::prelude::*;
 use std::path::PathBuf;
 
 // use clap::{App, Arg, SubCommand};
@@ -87,69 +85,4 @@ fn create_examples(path: &PathBuf) {
         });
         count += 1;
     }
-}
-
-///Runs a REPL on the command line
-fn repl(debug: bool) -> io::Result<usize> {
-    use gem::interpreter::*;
-    use gem::{lexer, parser};
-    let mut runtime = Runtime::new();
-    let mut glob_frame = StackFrame::new();
-    let mut input = String::new();
-    let mut multiline = vec![];
-
-    println!(
-        "Welcome to the EmeraldScript REPL v{}!",
-        env!("CARGO_PKG_VERSION")
-    );
-    println!("do \"gem --help\" to see other commands");
-    println!("Type exit or stop to leave\n");
-
-    print!(">>> ");
-    io::stdout().flush().expect("Couldn't flush stdout");
-
-    //while input isn't "exit" or "stop"
-    loop {
-        io::stdin()
-            .read_line(&mut input)
-            .expect("Unable to read input");
-
-        if input.ends_with("{\n") {
-            multiline.push(true);
-        } else if input.ends_with("}\n") {
-            multiline.pop();
-        }
-
-        if ["exit", "stop"].iter().any(|v| input.contains(v)) {
-            break;
-        } else if multiline.contains(&true) {
-            print!("...");
-            for _ in multiline.iter() {
-                print!("\t");
-            }
-            io::stdout().flush().expect("Couldn't flush stdout");
-            continue;
-        }
-        let tokens = lexer::run(&input);
-        if debug {
-            println!("Generated tokens: {:?}", tokens);
-        }
-        match parser::parse(tokens) {
-            Ok(ast) => {
-                if debug {
-                    println!("Generated AST: {:?}", ast);
-                }
-                if let Err(e) = repl_run(ast, &mut runtime, &mut glob_frame) {
-                    println!("{}", e);
-                }
-            }
-            Err(e) => println!("{}", e),
-        }
-        input = String::new();
-
-        print!(">>> ");
-        io::stdout().flush().expect("Couldn't flush stdout");
-    }
-
-    Ok(0)
 }
