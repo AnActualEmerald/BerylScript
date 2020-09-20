@@ -1,3 +1,5 @@
+mod beryl;
+
 use std::env;
 use std::fs;
 use std::io;
@@ -53,7 +55,10 @@ fn main() {
         create_examples(&path);
         return;
     }
-    repl(debug).expect("REPL encountered an issue: ");
+
+    let mut b = beryl::Repl::new();
+    b.run(debug);
+    // repl(debug).expect("REPL encountered an issue: ");
 }
 
 ///Generates example files in the target directory or one provided by the user
@@ -118,6 +123,7 @@ fn repl(debug: bool) -> io::Result<usize> {
         if ["exit", "stop"].iter().any(|v| input.contains(v)) {
             break;
         } else if multiline.contains(&true) {
+            print!("...");
             for _ in multiline.iter() {
                 print!("\t");
             }
