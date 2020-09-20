@@ -1,5 +1,5 @@
 fn main() {
-    print add(2, 3);
+    println add(2, 3);
 }
 
 //Functions can be defined wih arguments that will allow data to be passed from

@@ -1,0 +1,8 @@
+Available commands are:
+    "help"          => Displays this message
+    "exit", "stop"  => Leaves Beryl
+    "example [num]" => Displays a runnable example
+    "clear"         => Clears the screen
+
+To run an EmeraldScript file, leave Beryl then use "gem run [file_path]"
+or do "gem help" for more info 

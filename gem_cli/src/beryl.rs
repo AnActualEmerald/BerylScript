@@ -39,7 +39,6 @@ impl Repl {
             "Welcome to Beryl, the interactive EmeraldScript interpreter v{}!",
             env!("CARGO_PKG_VERSION")
         );
-        println!("do \"gem --help\" to see other commands");
         println!("Type exit or stop to leave, or help for more info\n");
         let mut prompt = "<== ".to_owned();
         let mut data = String::new();
@@ -49,7 +48,7 @@ impl Repl {
                 Ok(raw) => {
                     match raw.as_str() {
                         "help" => {
-                            println!("Possible commands are:\t\n'help'         => display this message\t\n'exit', 'stop' => leaves Beryl\t\n'clear'        => clears the screen\n");
+                            println!(include_str!("help.txt"));
                         }
                         "exit" | "stop" => break,
                         "clear" => {
@@ -60,8 +59,7 @@ impl Repl {
                                 "Welcome to Beryl, the interactive EmeraldScript interpreter v{}!",
                                 env!("CARGO_PKG_VERSION")
                             );
-                            println!("do \"gem --help\" to see other commands");
-                            println!("Type exit or stop to leave\n");
+                            println!("Type exit or stop to leave, or help for more info\n");
                         }
 
                         line => {
@@ -71,9 +69,6 @@ impl Repl {
                                     match p.parse::<usize>() {
                                         Ok(v) => {
                                             let ex = self.get_example(v - 1);
-                                            // println!("ex: {}", ex);
-                                            // data = String::new();
-                                            // data.push_str(ex);
                                             data = rl
                                                 .readline_with_initial("ex: ", (&ex, ""))
                                                 .unwrap();
