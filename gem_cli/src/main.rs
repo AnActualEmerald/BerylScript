@@ -54,8 +54,8 @@ fn main() {
         return;
     }
 
-    let mut b = beryl::Repl::new();
-    b.run(debug);
+    let mut b = beryl::Repl::new(debug);
+    b.run();
     // repl(debug).expect("REPL encountered an issue: ");
 }
 

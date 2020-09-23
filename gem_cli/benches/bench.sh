@@ -2,7 +2,7 @@
 
 #set EMTIMESTART $(date +%ms)
 
-time gem-cli test.em
+time gem_cli run test.em
 
 #EMTIMEEND=$(date +%ms)
 

@@ -11,28 +11,38 @@ pub struct Repl {
     glob_frame: StackFrame,
     multiline: Vec<bool>,
     cache: PathBuf,
+    debug: bool,
 }
 
 impl Repl {
-    pub fn new() -> Self {
+    pub fn new(debug: bool) -> Self {
         let mut cache = PathBuf::from(
             ProjectDirs::from("", "EmeraldScript", "Beryl")
                 .expect("Unable to find cache directory")
                 .cache_dir(),
         );
         cache.set_file_name("history.txt");
+        let rt = Runtime::new();
         Repl {
-            runtime: Runtime::new(),
+            runtime: rt,
             glob_frame: StackFrame::new(),
             multiline: vec![],
             cache: cache,
+            debug,
         }
     }
 
-    pub fn run(&mut self, debug: bool) {
+    pub fn run(&mut self) {
+        Term::stdout()
+            .clear_screen()
+            .expect("Unable to clear screen on startup");
         let mut rl = Editor::<()>::new();
         if rl.load_history(&self.cache).is_err() {
-            println!("Couldn't load history");
+            if self.debug {
+                println!("Couldn't load history");
+            }
+        } else if self.debug {
+            println!("Loaded history file {}", self.cache.display());
         }
 
         println!(
@@ -107,7 +117,7 @@ impl Repl {
                                 prompt = "<== ".to_owned();
                             }
 
-                            self.execute(&data, debug);
+                            self.execute(&data);
                             data = String::new();
 
                             rl.add_history_entry(line);
@@ -122,8 +132,39 @@ impl Repl {
                 }
             }
 
-            rl.save_history(&self.cache).unwrap();
+            rl.save_history(&self.cache)
+                .or_else(|er| {
+                    use std::fs;
+                    if fs::read(&self.cache).is_err() {
+                        if self.debug {
+                            print!("History file doesn't exist, creating it... ");
+                        }
+                        match fs::create_dir_all(&self.cache) {
+                            Ok(_) => {
+                                if self.debug {
+                                    println!("Done!");
+                                }
+                                Ok(())
+                            }
+                            Err(e) => {
+                                if self.debug {
+                                    println!("Couldn't create file: {}", e);
+                                }
+                                Err(e)
+                            }
+                        }
+                    } else {
+                        if self.debug {
+                            println!("File seems to exist, can't save to it because: {}", er);
+                        }
+                        Ok(())
+                    }
+                })
+                .unwrap();
         }
+        Term::stdout()
+            .clear_screen()
+            .expect("Unable to clear screen at exit");
     }
 
     fn get_example(&self, ex: usize) -> String {
@@ -144,20 +185,20 @@ impl Repl {
         }
     }
 
-    fn execute(&mut self, data: &str, debug: bool) {
+    fn execute(&mut self, data: &str) {
         let tokens = lexer::run(&data);
 
-        if debug {
+        if self.debug {
             println!("Generated tokens: {:?}", tokens);
         }
         match parser::parse(tokens) {
             Ok(ast) => {
-                if debug {
+                if self.debug {
                     println!("Generated AST: {:?}", ast);
                 }
 
                 match repl_run(ast, &mut self.runtime, &mut self.glob_frame) {
-                    Ok(v) => println!("\n==> {}", v),
+                    Ok(v) => println!("\nout: {}", v),
                     Err(e) => println!("{}", e),
                 }
                 println!("");

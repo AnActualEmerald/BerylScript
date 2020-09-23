@@ -117,6 +117,7 @@ pub fn run(tree: ExprNode) {
         println!("Interpreter crashed because: {}", e);
     }
 
+    //Command line args will be passed in through here
     if let Err(e) = r.do_call(&Expression::Ident("main".to_owned()), &[], &mut glob_frame) {
         println!("Interpreter crashed because: {}", e);
     }
@@ -302,8 +303,8 @@ impl Runtime {
                         Err(format!("Cannot assign value to operation {:?}", left))
                     } else {
                         let val = self.walk_tree(right, frame)?;
-                        frame.update_nested_array(l, r, Some(val), true);
-                        Ok(Value::Null)
+                        frame.update_nested_array(l, r, Some(val.clone()), true);
+                        Ok(val)
                     }
                 }
                 _ => Err(format!("Error assigning to variable {:?}", left)),
