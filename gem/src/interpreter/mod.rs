@@ -2,6 +2,7 @@
 mod tests;
 mod types;
 
+use crate::interpreter::types::EmObject;
 use crate::interpreter::types::Indexable;
 
 use super::lexer::Expression;
@@ -21,6 +22,7 @@ pub enum Value {
     //Char(u8),
     Name(String),
     Function(Expression, Vec<Value>, ExprNode),
+    Object(EmObject),
 }
 
 impl std::fmt::Display for Value {
@@ -43,6 +45,16 @@ impl std::fmt::Display for Value {
                 tmp.push(']');
 
                 write!(f, "{}", tmp)
+            }
+            Value::Object(e) => {
+                if let Some(Value::Function(n, _, t)) = e.get_prop("~display") {
+                    let mut rt = Runtime::new();
+                    let mut gf = StackFrame::new();
+                    let res = repl_run(t.clone(), &mut rt, &mut gf).unwrap_or_default();
+                    write!(f, "{}", res)
+                } else {
+                    write!(f, "{:?}", e.members)
+                }
             }
         }
     }
@@ -351,8 +363,8 @@ impl Runtime {
                 }
             }
             Expression::BoolOp(op) => {
-                let l_p = self.walk_tree(&left, frame);
-                let r_p = self.walk_tree(&right, frame);
+                let l_p = self.walk_tree(&left, frame)?;
+                let r_p = self.walk_tree(&right, frame)?;
                 match op.as_str() {
                     "==" => Ok(Value::EmBool(l_p == r_p)),
                     "!=" => Ok(Value::EmBool(l_p != r_p)),
