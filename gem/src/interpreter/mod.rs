@@ -437,28 +437,26 @@ impl Runtime {
     fn do_call(
         &mut self,
         name: &Expression,
-        param: &[ExprNode],
+        args: &[ExprNode],
         frame: &mut StackFrame,
     ) -> Result<Value, String> {
         match name {
-            Expression::Key(_) => self.keyword(name, &param[0], frame),
+            Expression::Key(_) => self.keyword(name, &args[0], frame),
             Expression::Ident(n) => {
                 if let Some(func) = self.heap.get(n) {
                     //I'd really like to not have to borrow here
                     match &*func.clone().borrow() {
                         Value::Function(_, params, body) => {
-                            if params.len() != param.len() {
+                            if params.len() != args.len() {
                                 Err(format!(
                                     "Expected {} arguments for {}, got {}",
                                     params.len(),
                                     n,
-                                    param.len()
+                                    args.len()
                                 ))
                             } else {
-                                let mut func_frame = StackFrame {
-                                    stack: HashMap::new(),
-                                };
-                                for (i, e) in param.iter().enumerate() {
+                                let mut func_frame = StackFrame::new();
+                                for (i, e) in args.iter().enumerate() {
                                     if let Value::Name(arg) = &params[i] {
                                         let val = self.walk_tree(&e, frame)?;
                                         match val {
@@ -508,6 +506,48 @@ impl Runtime {
         }
     }
 
+    fn do_init(
+        &mut self,
+        class: &EmObject,
+        init_args: &Vec<Box<ExprNode>>,
+        frame: &mut StackFrame,
+    ) -> Result<Value, String> {
+        let mut tmp = class.clone();
+        if let Some(Value::Function(_, params, body)) = tmp.get_prop("~init") {
+            if init_args.len() != params.len() {
+                Err(format!(
+                    "Contrsuctor for {} takes {} arguments, found {}",
+                    class.get_prop("~name").unwrap(),
+                    params.len(),
+                    init_args.len()
+                ))
+            } else {
+                let mut func_frame = StackFrame::new();
+                for (i, e) in init_args.iter().enumerate() {
+                    if let Value::Name(arg) = &params[i] {
+                        let val = self.walk_tree(&e, frame)?;
+                        match val {
+                            Value::Name(n) => {
+                                let tmp = frame.get_var(&n).clone();
+                                func_frame.set_var(arg.to_string(), tmp);
+                                //I'd really like to not have to copy here
+                            }
+                            _ => func_frame.set_var(arg.to_string(), val),
+                        }
+                    }
+                }
+                self.walk_tree(body, &mut func_frame)?;
+                for (name, val) in func_frame.stack {
+                    tmp.set_prop(name, Box::new(val));
+                }
+
+                Ok(Value::Object(tmp))
+            }
+        } else {
+            Ok(Value::Object(tmp))
+        }
+    }
+
     ///Defines an array and saves it to the current stackframe
     fn create_array(
         &mut self,
@@ -534,6 +574,23 @@ impl Runtime {
             Ok(array.index(f as usize)?.clone())
         } else {
             Err(format!("Index was not a numeber"))
+        }
+    }
+
+    fn create_obj(
+        &mut self,
+        type_name: &str,
+        init_args: &Vec<Box<ExprNode>>,
+        frame: &mut StackFrame,
+    ) -> Result<Value, String> {
+        if let Some(def) = self.heap.get(type_name) {
+            if let Value::Object(o) = *def.borrow() {
+                self.do_init(&o, init_args, frame)
+            } else {
+                Err(format!("No class definition for {}", type_name))
+            }
+        } else {
+            Err(format!("No class definition for {}", type_name))
         }
     }
 }

@@ -15,11 +15,11 @@ pub trait Valuable {
 
 pub trait Object {
     fn get_prop(&self, prop: &'static str) -> Option<&dyn Valuable>;
-    fn set_prop(&mut self, prop: &'static str, val: Box<dyn Valuable>);
+    fn set_prop(&mut self, prop: &str, val: Box<dyn Valuable>);
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct EmObject {
-    pub members: HashMap<&'static str, Box<Value>>,
+    pub members: HashMap<String, Box<Value>>,
 }
 
 impl EmObject {
@@ -31,7 +31,7 @@ impl EmObject {
         }
     }
 
-    pub fn set_prop(&mut self, prop: &'static str, val: Box<Value>) {
+    pub fn set_prop(&mut self, prop: String, val: Box<Value>) {
         self.members.insert(prop, val);
     }
 }
