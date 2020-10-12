@@ -23,3 +23,7 @@ pub fn run(data: String, debug: bool) {
         Err(e) => println!("{}", e),
     }
 }
+
+pub fn version() -> &'static str {
+    env!("CARGO_PKG_VERSION")
+}
