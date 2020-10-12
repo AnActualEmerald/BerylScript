@@ -577,22 +577,22 @@ impl Runtime {
         }
     }
 
-    fn create_obj(
-        &mut self,
-        type_name: &str,
-        init_args: &Vec<Box<ExprNode>>,
-        frame: &mut StackFrame,
-    ) -> Result<Value, String> {
-        if let Some(def) = self.heap.get(type_name) {
-            if let Value::Object(o) = *def.borrow() {
-                self.do_init(&o, init_args, frame)
-            } else {
-                Err(format!("No class definition for {}", type_name))
-            }
-        } else {
-            Err(format!("No class definition for {}", type_name))
-        }
-    }
+    // fn create_obj(
+    //     &mut self,
+    //     type_name: &str,
+    //     init_args: &Vec<Box<ExprNode>>,
+    //     frame: &mut StackFrame,
+    // ) -> Result<Value, String> {
+    //     if let Some(def) = self.heap.get(type_name) {
+    //         if let Value::Object(o) = *def.borrow() {
+    //             self.do_init(&o, init_args, frame)
+    //         } else {
+    //             Err(format!("No class definition for {}", type_name))
+    //         }
+    //     } else {
+    //         Err(format!("No class definition for {}", type_name))
+    //     }
+    // }
 }
 
 ///Keeps track of local variables for functions. Currently only created when a function is called

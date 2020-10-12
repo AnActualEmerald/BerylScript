@@ -88,7 +88,7 @@ impl Lexer {
             token: String::new(),
             valid_num: Regex::new(r"\d*").unwrap(),
             valid_chars: Regex::new(r"\D+[[:word:]]*").unwrap(),
-            valid_symb: Regex::new(r"[\{\}\(\)=;\*\+\-/#!,\t\n\[\]]").unwrap(),
+            valid_symb: Regex::new(r"[\{\}\(\)=;.\*\+\-/#!,\t\n\[\]]").unwrap(),
             check: false,
         }
     }
@@ -211,7 +211,7 @@ impl Lexer {
                 self.token.push(c);
             }
             match self.token.as_str() {
-                "fn" => {
+                "fn" | "new" => {
                     result = Some(Expression::Key(self.token.to_string()));
                     self.token.clear();
                 }
