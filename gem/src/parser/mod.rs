@@ -32,6 +32,20 @@ pub enum ExprNode {
     EOF,
 }
 
+impl ExprNode {
+    ///Returns the inner value of a node as a string if possible
+    pub fn inner(&self) -> String{
+        match self {
+            ExprNode::StrLiteral(l) => l.to_string(),
+            ExprNode::NumLiteral(l) => l.to_string(),
+            ExprNode::BoolLiteral(l) => l.to_string(),
+            ExprNode::Name(l) => l.to_string(),
+            _ => panic!("Can't unwrap {:?}", self)
+
+        }
+    }
+}
+
 ///Starts the parser
 pub fn parse(tokens: Vec<Expression>) -> Result<ExprNode, String> {
     //let root = vec!();

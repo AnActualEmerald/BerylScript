@@ -323,8 +323,22 @@ impl Runtime {
             },
 
             Expression::Operator(o) => {
+                if *o == '.' {
+                    return if let Value::Object(obj) = self.walk_tree(&left, frame)? {
+                        if let Some(v) = obj.get_prop(&right.inner()) {
+                            Ok(v.clone())
+                        }else {
+                            Err(format!("{} has no property {}", obj, right.inner()))
+                        }
+                    } else {
+                        Err(format!("{:?} is not an object", left))
+                    }
+
+                }
                 let l_p = self.walk_tree(&left, frame)?;
                 let r_p = self.walk_tree(&right, frame)?;
+
+               
 
                 let f = match l_p {
                     Value::Float(f) => f,

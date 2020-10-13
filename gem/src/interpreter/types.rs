@@ -23,7 +23,7 @@ pub struct EmObject {
 }
 
 impl EmObject {
-    pub fn get_prop(&self, prop: &'static str) -> Option<&Value> {
+    pub fn get_prop(&self, prop: &str) -> Option<&Value> {
         if let Some(val) = self.members.get(prop) {
             Some(&**val)
         } else {
@@ -33,6 +33,16 @@ impl EmObject {
 
     pub fn set_prop(&mut self, prop: String, val: Box<Value>) {
         self.members.insert(prop, val);
+    }
+}
+
+impl std::fmt::Display for EmObject {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(v) = self.get_prop("~name"){
+            write!(f, "{}", v)
+        }else {
+            write!(f, "{:?}", self)
+        }
     }
 }
 
