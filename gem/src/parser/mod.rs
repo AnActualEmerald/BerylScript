@@ -63,7 +63,7 @@ fn make_block(iter: &mut Peekable<Iter<Expression>>) -> Result<ExprNode, String>
             Expression::Lbrace => {
                 root.push(make_block(iter)?);
             }
-            _ => {root.push(expr(iter, Some(t))?)} //root.push(read_line(Some(&t), iter)?),
+            _ => {}//root.push(expr(iter, Some(t))?)} //root.push(read_line(Some(&t), iter)?),
         }
     }
 
@@ -484,12 +484,14 @@ fn make_for_loop(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, 
 
 fn make_if(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, String> {
     if let Some(Expression::Lparen) = iter.peek() {
+        // iter.next();
         let condition = expr(iter, None)?; //get the conditional statement for the if
         iter.next(); //skip the closing paren
         iter.next(); //skip the opening brace
         let block = make_block(iter)?; //get the body of the if
 
         let mut branch = ExprNode::Illegal(None);
+
 
         if let Some(Expression::Key(w)) = iter.peek() {
             match w.as_str() {
