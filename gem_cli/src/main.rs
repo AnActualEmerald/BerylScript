@@ -22,7 +22,8 @@ fn main() {
         (@arg PATH: "Where to generate the files, defaults to current directory"))
     (@subcommand run =>
         (about: "Run an emerald script program")
-        (@arg PATH: +required "Path of file to run"))
+        (@arg PATH: +required "Path of file to run")
+        (@arg ARGS: ... +use_delimiter "Arguments to pass to the script"))
     )
     .get_matches();
 
@@ -34,7 +35,8 @@ fn main() {
             let data = fs::read_to_string(&path).unwrap_or_else(|e| {
                 panic!("Couldn't read file {}: {}", path, e);
             });
-            gem::run(data, debug);
+            let args = sub.value_of("ARGS").unwrap_or("");
+            gem::run(data, args, debug);
             return;
         } else {
             println!("Not a valid .em file!");

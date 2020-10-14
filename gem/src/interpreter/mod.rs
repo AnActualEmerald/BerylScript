@@ -36,7 +36,12 @@ impl std::fmt::Display for Value {
             Value::EmArray(v) => {
                 let mut tmp = format!("[");
                 for val in v.iter() {
-                    tmp = format!("{}{}, ", tmp, val);
+                    if let Value::EmString(_) = **val{
+                        tmp = format!("{}\"{}\", ", tmp, val);
+                    }else {
+                        tmp = format!("{}{}, ", tmp, val);
+
+                    }
                 }
                 tmp.pop();
                 tmp.pop();
@@ -108,23 +113,23 @@ pub fn repl_run(
 }
 
 ///Walks through the provided tree and executes all the nodes
-pub fn run(tree: ExprNode) {
+pub fn run(tree: ExprNode, args: ExprNode) {
     let mut r = Runtime::new();
     // r.find_global_vars();
     let mut glob_frame = StackFrame::new();
+
     //define all functions and any global variables
     if let Err(e) = r.walk_tree(&tree, &mut glob_frame) {
         println!("Interpreter crashed because: {}", e);
     }
 
-    //Command line args will be passed in through here
-    if let Err(e) = r.do_call(&Expression::Ident("main".to_owned()), &[], &mut glob_frame) {
+    if let Err(e) = r.do_call(&Expression::Ident("main".to_owned()), &[args], &mut glob_frame) {
         println!("Interpreter crashed because: {}", e);
     }
     // println!("{:?}", glob_frame.stack);
 }
 
-// Basically *is* the interpreter, walks throught the AST and executes the nodes as needed
+// Basically *is* the interpreter, walks through the AST and executes the nodes as needed
 impl Runtime {
     //TODO: Reduce the number of copies ins this code
 
@@ -323,6 +328,9 @@ impl Runtime {
                             0.0 as f32
                         }
                     }
+                    Value::EmString(s) => {
+                        return Ok(Value::EmString(format!("{}{}", s, r_p)))
+                    },
                     _ => 0.0 as f32,
                 };
 

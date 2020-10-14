@@ -8,17 +8,21 @@ pub mod parser;
 mod bench;
 
 ///Runs the lexer, parser, and interpreter on the provided string
-pub fn run(data: String, debug: bool) {
+pub fn run(data: String, args: &str, debug: bool) {
     let tokens = lexer::run(&data);
     if debug {
         println!("Generated tokens: {:?}", tokens);
     }
     match parser::parse(tokens) {
         Ok(ast) => {
+            let args = parser::read_line(None, &mut lexer::run(&format!("[{:?}]", args)).iter().peekable(), Some(&lexer::Expression::Semicolon)).unwrap();
+
             if debug {
                 println!("{:?}", &ast);
+                println!("{:?}", args);
             }
-            interpreter::run(ast)
+
+            interpreter::run(ast, args)
         }
         Err(e) => println!("{}", e),
     }

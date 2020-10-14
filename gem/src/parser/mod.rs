@@ -63,7 +63,7 @@ fn make_block(iter: &mut Peekable<Iter<Expression>>) -> Result<ExprNode, String>
             Expression::Lbrace => {
                 root.push(make_block(iter)?);
             }
-            _ => {} //root.push(read_line(Some(&t), iter)?),
+            _ => {root.push(expr(iter, Some(t))?)} //root.push(read_line(Some(&t), iter)?),
         }
     }
 
@@ -141,7 +141,7 @@ fn def_func(
 }
 
 ///Reads to the end of the current line, stopping at the first semicolon or lbrace, or the specified deliminator
-fn read_line<'a>(
+pub fn read_line<'a>(
     prev: Option<&Vec<Expression>>,
     iter: &mut Peekable<Iter<Expression>>,
     delim: Option<&Expression>,
