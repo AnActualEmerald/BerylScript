@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests;
 mod types;
+mod builtins;
 
 use crate::interpreter::types::Indexable;
 
@@ -97,6 +98,7 @@ pub struct Runtime {
     // tree: ExprNode,
     // stack: Vec<StackFrame>,
     heap: HashMap<String, RefCell<Value>>,
+    functions: HashMap<String, Box<dyn Fn(Vec<Value>) -> Value>>,
     returning: bool,
 }
 
@@ -138,6 +140,7 @@ impl Runtime {
         Runtime {
             heap: HashMap::new(),
             returning: false,
+            functions: builtins::get_functions(),
         }
     }
 
@@ -384,45 +387,25 @@ impl Runtime {
         value: &ExprNode,
         frame: &mut StackFrame,
     ) -> Result<Value, String> {
-        if let Expression::Key(s) = name {
+        if let Expression::Key(s) = name { 
+            let tmp = match value {
+                        ExprNode::Call(n, args) => 
+                            self.do_call(n, args, frame)?,
+                        
+                        _ => self.walk_tree(&value, frame)?,
+                        };
             match s.as_str() {
-                "print" => {
-                    // println!("DEBUG: value={:?}", value);
-                    match value {
-                        ExprNode::Call(n, args) => {
-                            println!("{}", self.do_call(n, args, frame)?);
-                        }
-                        _ => {
-                            let tmp = self.walk_tree(&value, frame)?;
-                            // println!("DEBUG: tmp={:?}", tmp);
-                            print!("{}", tmp);
-                        }
-                    }
-                }
-                "println" => {
-                    match value {
-                        ExprNode::Call(n, args) => {
-                            println!("{}", self.do_call(n, args, frame)?);
-                        }
-                        _ => {
-                            let tmp = self.walk_tree(&value, frame)?;
-                            // println!("DEBUG: tmp={:?}", tmp);
-                            println!("{}", tmp);
-                        }
-                    }
-                }
                 "return" => {
                     self.returning = true;
-                    match value {
-                        ExprNode::Call(n, args) => {
-                            return self.do_call(n, args, frame);
-                        }
-                        _ => {
-                            return self.walk_tree(&value, frame);
-                        }
+                    return Ok(tmp);
+                }
+                _ => {
+                    return if let Some(func) = self.functions.get(s) {
+                        Ok(func(vec![tmp]))
+                    }else {
+                        Err(format!("Couldn't find builtin function for {}", s))
                     }
                 }
-                _ => {}
             }
         }
 
