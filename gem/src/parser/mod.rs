@@ -255,6 +255,8 @@ fn expr(
                 node = match iter.peek() {
                     Some(Expression::Lparen) => expr(iter, t)?,
                     Some(Expression::Lbracket) => index_array(t.unwrap(), iter)?,
+                    Some(Expression::Operator(_)) => expr(iter, t)?,
+                    Some(Expression::Equal) => expr(iter, t)?,
                     _ => ExprNode::Name(Box::new(i.to_string())),
                 }
             }

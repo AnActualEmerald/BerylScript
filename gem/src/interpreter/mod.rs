@@ -35,7 +35,7 @@ impl std::fmt::Display for Value {
             Value::Function(n, p, _) => write!(f, "{:?}({:?})", n, p),
             Value::EmBool(b) => write!(f, "{}", b),
             Value::EmArray(v) => {
-                let mut tmp = format!("[");
+                let mut tmp = String::new();
                 for val in v.iter() {
                     if let Value::EmString(_) = **val{
                         tmp = format!("{}\"{}\", ", tmp, val);
@@ -46,9 +46,7 @@ impl std::fmt::Display for Value {
                 }
                 tmp.pop();
                 tmp.pop();
-                tmp.push(']');
-
-                write!(f, "{}", tmp)
+                write!(f, "[{}]", tmp)
             }
         }
     }
@@ -400,11 +398,7 @@ impl Runtime {
                     return Ok(tmp);
                 }
                 _ => {
-                    return if let Some(func) = self.functions.get(s) {
-                        Ok(func(vec![tmp]))
-                    }else {
-                        Err(format!("Couldn't find builtin function for {}", s))
-                    }
+                   
                 }
             }
         }
@@ -422,6 +416,15 @@ impl Runtime {
         match name {
             Expression::Key(_) => self.keyword(name, &param[0], frame),
             Expression::Ident(n) => {
+                //check if there is a built-in function to use
+                if self.functions.contains_key(n) {
+                    let tmp = param.iter()
+                    .map(|e| self.walk_tree(e, frame).unwrap())
+                    .collect();
+                    let func = self.functions.get(n).unwrap();
+                    return Ok(func(tmp))
+                }
+
                 if let Some(func) = self.heap.get(n) {
                     //I'd really like to not have to borrow here
                     match &*func.clone().borrow() {

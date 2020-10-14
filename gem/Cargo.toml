@@ -11,3 +11,5 @@ edition = "2018"
 
 [dependencies]
 regex = "1"
+console = "0.12.0"
+
