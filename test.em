@@ -4,5 +4,4 @@ fn main(args) {
   i[0][0] = true;
   println i;
   println args;
-  println args[0] + 1;
 }

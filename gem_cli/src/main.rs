@@ -35,8 +35,12 @@ fn main() {
             let data = fs::read_to_string(&path).unwrap_or_else(|e| {
                 panic!("Couldn't read file {}: {}", path, e);
             });
-            let args = sub.value_of("ARGS").unwrap_or("");
-            gem::run(data, args, debug);
+            let args = if let Some(tmp) = sub.values_of("ARGS"){
+                tmp.map(|e| format!("\"{}\"", e)).collect::<Vec<String>>().join(",")
+            }else {
+                "".to_string()
+            };
+            gem::run(data, &args, debug);
             return;
         } else {
             println!("Not a valid .em file!");
