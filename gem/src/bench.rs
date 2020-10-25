@@ -48,5 +48,5 @@ fn exec_bench(b: &mut Bencher) {
         Expression::EOF,
     ]);
 
-    b.iter(|| interpreter::run(dummy.clone().unwrap()));
+    b.iter(|| interpreter::run(dummy.clone().unwrap(), parser::ExprNode::Illegal(None)));
 }

@@ -46,8 +46,9 @@ impl Repl {
         }
 
         println!(
-            "Welcome to Beryl, the interactive EmeraldScript interpreter v{}!",
-            env!("CARGO_PKG_VERSION")
+            "Welcome to Beryl, the interactive EmeraldScript interpreter v{}!\nGem version {}",
+            env!("CARGO_PKG_VERSION"),
+            gem::version()
         );
         println!("Type exit or stop to leave, or help for more info\n");
         let mut prompt = "<== ".to_owned();

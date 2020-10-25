@@ -215,10 +215,10 @@ impl Lexer {
                     result = Some(Expression::Key(self.token.to_string()));
                     self.token.clear();
                 }
-                "print" | "println" => {
-                    result = Some(Expression::Key(self.token.to_string()));
-                    self.token.clear();
-                }
+                // "print" | "println" => {
+                //     result = Some(Expression::Key(self.token.to_string()));
+                //     self.token.clear();
+                // }
                 "return" => {
                     result = Some(Expression::Key(self.token.to_string()));
                     self.token.clear();

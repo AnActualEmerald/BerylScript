@@ -1,6 +1,12 @@
-fn main() {
-  i = [[10, ["a", "b", "c"], 30], 2, 3];
-  println i[0][1][2];
-  i[0][0] = true;
-  println i;
+fn main(args) {
+  temp = readln("Enter your name: ");
+  res = "Hello there, " + temp;
+  println(res);
+  age = number(readln("How old are you? "));
+  if(age > 50) {
+    println("You're over the hill!");
+  } elif (age <= 50) {
+    println("So young :O");clea
+  }
+  read("Press enter to continue");
 }

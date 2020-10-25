@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests;
 mod types;
+mod builtins;
 
 use crate::interpreter::types::EmObject;
 use crate::interpreter::types::Indexable;
@@ -36,15 +37,18 @@ impl std::fmt::Display for Value {
             Value::Function(n, p, _) => write!(f, "{:?}({:?})", n, p),
             Value::EmBool(b) => write!(f, "{}", b),
             Value::EmArray(v) => {
-                let mut tmp = format!("[");
+                let mut tmp = String::new();
                 for val in v.iter() {
-                    tmp = format!("{}{}, ", tmp, val);
+                    if let Value::EmString(_) = **val{
+                        tmp = format!("{}\"{}\", ", tmp, val);
+                    }else {
+                        tmp = format!("{}{}, ", tmp, val);
+
+                    }
                 }
                 tmp.pop();
                 tmp.pop();
-                tmp.push(']');
-
-                write!(f, "{}", tmp)
+                write!(f, "[{}]", tmp)
             }
             Value::Object(e) => {
                 if let Some(Value::Function(n, _, t)) = e.get_prop("~display") {
@@ -104,6 +108,7 @@ pub struct Runtime {
     // tree: ExprNode,
     // stack: Vec<StackFrame>,
     heap: HashMap<String, RefCell<Value>>,
+    functions: HashMap<String, Box<dyn Fn(Vec<Value>) -> Value>>,
     returning: bool,
 }
 
@@ -120,23 +125,23 @@ pub fn repl_run(
 }
 
 ///Walks through the provided tree and executes all the nodes
-pub fn run(tree: ExprNode) {
+pub fn run(tree: ExprNode, args: ExprNode) {
     let mut r = Runtime::new();
     // r.find_global_vars();
     let mut glob_frame = StackFrame::new();
+
     //define all functions and any global variables
     if let Err(e) = r.walk_tree(&tree, &mut glob_frame) {
         println!("Interpreter crashed because: {}", e);
     }
 
-    //Command line args will be passed in through here
-    if let Err(e) = r.do_call(&Expression::Ident("main".to_owned()), &[], &mut glob_frame) {
+    if let Err(e) = r.do_call(&Expression::Ident("main".to_owned()), &[args], &mut glob_frame) {
         println!("Interpreter crashed because: {}", e);
     }
     // println!("{:?}", glob_frame.stack);
 }
 
-// Basically *is* the interpreter, walks throught the AST and executes the nodes as needed
+// Basically *is* the interpreter, walks through the AST and executes the nodes as needed
 impl Runtime {
     //TODO: Reduce the number of copies ins this code
 
@@ -145,6 +150,7 @@ impl Runtime {
         Runtime {
             heap: HashMap::new(),
             returning: false,
+            functions: builtins::get_functions(),
         }
     }
 
@@ -349,6 +355,9 @@ impl Runtime {
                             0.0 as f32
                         }
                     }
+                    Value::EmString(s) => {
+                        return Ok(Value::EmString(format!("{}{}", s, r_p)))
+                    },
                     _ => 0.0 as f32,
                 };
 
@@ -402,45 +411,21 @@ impl Runtime {
         value: &ExprNode,
         frame: &mut StackFrame,
     ) -> Result<Value, String> {
-        if let Expression::Key(s) = name {
+        if let Expression::Key(s) = name { 
+            let tmp = match value {
+                        ExprNode::Call(n, args) => 
+                            self.do_call(n, args, frame)?,
+                        
+                        _ => self.walk_tree(&value, frame)?,
+                        };
             match s.as_str() {
-                "print" => {
-                    // println!("DEBUG: value={:?}", value);
-                    match value {
-                        ExprNode::Call(n, args) => {
-                            println!("{}", self.do_call(n, args, frame)?);
-                        }
-                        _ => {
-                            let tmp = self.walk_tree(&value, frame)?;
-                            // println!("DEBUG: tmp={:?}", tmp);
-                            print!("{}", tmp);
-                        }
-                    }
-                }
-                "println" => {
-                    match value {
-                        ExprNode::Call(n, args) => {
-                            println!("{}", self.do_call(n, args, frame)?);
-                        }
-                        _ => {
-                            let tmp = self.walk_tree(&value, frame)?;
-                            // println!("DEBUG: tmp={:?}", tmp);
-                            println!("{}", tmp);
-                        }
-                    }
-                }
                 "return" => {
                     self.returning = true;
-                    match value {
-                        ExprNode::Call(n, args) => {
-                            return self.do_call(n, args, frame);
-                        }
-                        _ => {
-                            return self.walk_tree(&value, frame);
-                        }
-                    }
+                    return Ok(tmp);
                 }
-                _ => {}
+                _ => {
+                   
+                }
             }
         }
 
@@ -457,6 +442,15 @@ impl Runtime {
         match name {
             Expression::Key(_) => self.keyword(name, &args[0], frame),
             Expression::Ident(n) => {
+                //check if there is a built-in function to use
+                if self.functions.contains_key(n) {
+                    let tmp = param.iter()
+                    .map(|e| self.walk_tree(e, frame).unwrap())
+                    .collect();
+                    let func = self.functions.get(n).unwrap();
+                    return Ok(func(tmp))
+                }
+
                 if let Some(func) = self.heap.get(n) {
                     //I'd really like to not have to borrow here
                     match &*func.clone().borrow() {
