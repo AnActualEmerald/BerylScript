@@ -51,7 +51,7 @@ impl std::fmt::Display for Value {
                 write!(f, "[{}]", tmp)
             }
             Value::Object(e) => {
-                if let Some(Value::Function(n, _, t)) = e.get_prop("~display") {
+                if let Some(Value::Function(_, _, t)) = e.get_prop("~display") {
                     let mut rt = Runtime::new();
                     let mut gf = StackFrame::new();
                     let res = repl_run(t.clone(), &mut rt, &mut gf).unwrap_or_default();
@@ -444,7 +444,7 @@ impl Runtime {
             Expression::Ident(n) => {
                 //check if there is a built-in function to use
                 if self.functions.contains_key(n) {
-                    let tmp = param.iter()
+                    let tmp = args.iter()
                     .map(|e| self.walk_tree(e, frame).unwrap())
                     .collect();
                     let func = self.functions.get(n).unwrap();
@@ -516,12 +516,13 @@ impl Runtime {
 
     fn do_init(
         &mut self,
-        class: &EmObject,
+        name: &ExprNode,
         init_args: &Vec<Box<ExprNode>>,
         frame: &mut StackFrame,
     ) -> Result<Value, String> {
-        let mut tmp = class.clone();
-        if let Some(Value::Function(_, params, body)) = tmp.get_prop("~init") {
+        if let Value::Object(class) = self.walk_tree(name, frame)?{
+            let mut tmp = class.clone();
+        if let Some(Value::Function(_, params, body)) = class.get_prop("~init") {
             if init_args.len() != params.len() {
                 Err(format!(
                     "Contrsuctor for {} takes {} arguments, found {}",
@@ -531,6 +532,7 @@ impl Runtime {
                 ))
             } else {
                 let mut func_frame = StackFrame::new();
+                func_frame.set_var(String::from("self"), Value::Object(tmp));
                 for (i, e) in init_args.iter().enumerate() {
                     if let Value::Name(arg) = &params[i] {
                         let val = self.walk_tree(&e, frame)?;
@@ -545,15 +547,16 @@ impl Runtime {
                     }
                 }
                 self.walk_tree(body, &mut func_frame)?;
-                for (name, val) in func_frame.stack {
-                    tmp.set_prop(name, Box::new(val));
-                }
-
-                Ok(Value::Object(tmp))
+                
+                //should figure out a way to get ownership from a stackframe
+                Ok(func_frame.get_var("self").clone())
             }
         } else {
             Ok(Value::Object(tmp))
         }
+    }else {
+        Err(format!("Expected object, found {:?}", name))
+    }
     }
 
     ///Defines an array and saves it to the current stackframe

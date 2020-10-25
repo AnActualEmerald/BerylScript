@@ -211,7 +211,7 @@ impl Lexer {
                 self.token.push(c);
             }
             match self.token.as_str() {
-                "fn" | "new" => {
+                "fn" | "new" | "class" => {
                     result = Some(Expression::Key(self.token.to_string()));
                     self.token.clear();
                 }
