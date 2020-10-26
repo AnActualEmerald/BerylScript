@@ -1,4 +1,4 @@
 //The simplest EmeraldScript file you can have. 
-fn main() {
-	println "Hello world!"; 
+fn main(args) {
+	println("Hello world!"); 
 }
