@@ -1,4 +1,5 @@
 fn main(args) {
+<<<<<<< HEAD
   temp = readln("Enter your name: ");
   //operations don't work in function calls for whatever reason
   res = "Hello there, " + temp;
@@ -27,3 +28,11 @@ class Person{
     res = "Hello, I'm " + self.name + " and I'm " + self.age;
   }
 }
+=======
+  i = 0;
+  while(i < 10){
+    i++;
+    println(i);
+  }  
+}
+>>>>>>> dev

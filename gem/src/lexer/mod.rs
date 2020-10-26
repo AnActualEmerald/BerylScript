@@ -31,6 +31,7 @@ pub enum Expression {
     Lbracket,
     Rbracket,
     Semicolon,
+    Comma,
     EOF,
 }
 
@@ -51,6 +52,7 @@ impl std::fmt::Display for Expression {
             Expression::Rbrace => write!(f, "Symbol: }}"),
             Expression::Lbrace => write!(f, "Symbol: {{"),
             Expression::Semicolon => write!(f, "Symbol: ;"),
+            Expression::Comma => write!(f, "Symbol: ,"),
             _ => write!(f, "{}", self),
         }
     }
@@ -256,12 +258,13 @@ impl Lexer {
         //     c.to_string()
         // );
         match c {
-            ',' | '\t' | ' ' | '\n' | '\r' => None,
+            '\t' | ' ' | '\n' | '\r' => None,
             '"' => {
                 self.current_state = State::EmString;
                 self.token.clear();
                 None
             }
+            ',' => Some(Expression::Comma),
             '{' => Some(Expression::Lbrace),
             '}' => Some(Expression::Rbrace),
             '(' => Some(Expression::Lparen),

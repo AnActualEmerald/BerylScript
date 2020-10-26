@@ -10,7 +10,7 @@ fn token_generation() {
         Expression::Lparen,
         Expression::Rparen,
         Expression::Lbrace,
-        Expression::Key("print".to_owned()),
+        Expression::Ident("print".to_owned()),
         Expression::Word("hello world".to_owned()),
         Expression::Semicolon,
         Expression::Rbrace,
