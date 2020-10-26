@@ -1,4 +1,4 @@
-fn main() {
+fn main(args) {
     println(add(2, 3));
 }
 
