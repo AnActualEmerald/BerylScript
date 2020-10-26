@@ -65,9 +65,7 @@ fn looping() {
     )]);
     // let loop_test = ExprNode::Loop(Box::new(ty), Box::new(condition), Box::new(block));
     let mut r = Runtime::new();
-    let mut stack = StackFrame {
-        stack: HashMap::new(),
-    };
+    let mut stack = StackFrame::new();
     stack.set_var(String::from("i"), Value::Float(0.0 as f32));
     r.do_loop(&ty, &condition, &block, &mut stack)
         .expect("Error executing loop");

@@ -15,7 +15,7 @@ pub fn run(data: String, args: &str, debug: bool) {
     }
     match parser::parse(tokens) {
         Ok(ast) => {
-            let args = parser::read_line(None, &mut lexer::run(&format!("[{}]", args)).iter().peekable(), Some(&lexer::Expression::Semicolon)).unwrap();
+            let args = parser::read_line(None, &mut lexer::run(&format!("[{}]", args)).iter().peekable(), &vec![&lexer::Expression::Semicolon]).unwrap();
 
             if debug {
                 println!("{:?}", &ast);
