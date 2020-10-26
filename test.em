@@ -1,20 +1,9 @@
 fn main(args) {
-<<<<<<< HEAD
-  temp = readln("Enter your name: ");
-  //operations don't work in function calls for whatever reason
-  res = "Hello there, " + temp;
-  println(res);
-  age = number(readln("How old are you? "));
-  if(age > 50) {
-    println("You're over the hill!");
-  } elif (age <= 50) {
-    println("So young :O");
-  }
-  read("Press enter to continue");
+  println("Hey there");
 }
 
 fn objects() {
-
+  bob = new Person("Bob", 69, "Professional Weed Smoker");
 }
 
 class Person{
@@ -25,14 +14,6 @@ class Person{
   }
 
   fn greet(self){
-    res = "Hello, I'm " + self.name + " and I'm " + self.age;
+    println("Hello, I'm " + self.name + " and I'm " + self.age);
   }
 }
-=======
-  i = 0;
-  while(i < 10){
-    i++;
-    println(i);
-  }  
-}
->>>>>>> dev

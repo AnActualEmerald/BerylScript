@@ -20,6 +20,8 @@ pub enum ExprNode {
     Call(Box<Expression>, Vec<ExprNode>), //name, args
     Block(Vec<ExprNode>),
     Func(Box<Expression>, Vec<ExprNode>, Box<ExprNode>), //Name, params, function body
+    Class(Box<Expression>, Box<ExprNode>), //name, body
+    New(Box<Expression>, Vec<ExprNode>), //name params
     Loop(Box<String>, Box<ExprNode>, Box<ExprNode>),     //loop keyword, condition, block
     ForLoopDec(Box<ExprNode>, Box<ExprNode>, Box<ExprNode>), //declaration, condition, incrementation
     Statement(Box<ExprNode>),
@@ -95,6 +97,8 @@ fn key_word(
             vec![read_line(None, iter, &vec![])?],
         )),
         "fn" => def_func(iter, cur),
+        "class" => define_class(iter), //get the name of the class and collect the block that should follow
+        "new" => new_object(iter), //call to a function that passes in the class name and the args for the constructor
         "return" => Ok(ExprNode::ReturnVal(Box::new(expr(iter, cur)?))),
         "true" => Ok(ExprNode::BoolLiteral(true)),
         "false" => Ok(ExprNode::BoolLiteral(false)),
@@ -435,9 +439,9 @@ fn find_params(
 ) -> Result<Vec<ExprNode>, String> {
     let mut params = vec![];
     loop {
-        // println!("{:?} is next in params", peekable.peek());
-        // println!("{:?} is the accumulated params", params);
-        // std::io::stdin().read_line(&mut String::new());
+        println!("{:?} is next in params", peekable.peek());
+        println!("{:?} is the accumulated params", params);
+        std::io::stdin().read_line(&mut String::new());
         match peekable.peek() {
             Some(Expression::Lparen) => {
                 peekable.next();
@@ -451,6 +455,7 @@ fn find_params(
             Some(Expression::Lbrace) => {
                 return Err("Can't have block in function parameters".to_owned());
             }
+            None => break,
             _ => params.push(read_line(None, peekable, &vec![&Expression::Comma, &Expression::Rparen])?),
         }
     }
@@ -547,5 +552,34 @@ fn make_array(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, Str
             None => return Ok(ExprNode::Array(res)),//return Err("Unexpected end of file".to_owned()),
             _ => res.push(read_line(None, iter, &vec![&Expression::Comma, &Expression::Rbracket])?),
         }
+    }
+}
+
+fn define_class(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, String> {
+    println!("defining class");
+    let name = if let Some(Expression::Ident(_)) = iter.peek(){
+        iter.next().unwrap()
+    }else {
+        return Err(format!("Expected identifier, found {:?}", iter.peek()));
+    };
+
+    println!("{:?}", iter.next());
+    let body = make_block(iter)?;
+
+    Ok(ExprNode::Class(Box::new(name.clone()), Box::new(body)))
+}
+
+fn new_object(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, String> {
+    println!("Make a new object");
+    let name = if let Some(Expression::Ident(_)) = iter.peek() {
+        iter.next().unwrap()
+    }else {
+        return Err(format!("Expected identifier, found {:?}", iter.peek()));
+    };
+
+    println!("{:?}", iter.next());
+    match find_params(iter) {
+        Ok(params) => Ok(ExprNode::New(Box::new(name.clone()), params)),
+        Err(e) => Err(e)
     }
 }
