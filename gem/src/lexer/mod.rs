@@ -31,6 +31,7 @@ pub enum Expression {
     Lbracket,
     Rbracket,
     Semicolon,
+    Comma,
     EOF,
 }
 
@@ -51,6 +52,7 @@ impl std::fmt::Display for Expression {
             Expression::Rbrace => write!(f, "Symbol: }}"),
             Expression::Lbrace => write!(f, "Symbol: {{"),
             Expression::Semicolon => write!(f, "Symbol: ;"),
+            Expression::Comma => write!(f, "Symbol: ,"),
             _ => write!(f, "{}", self),
         }
     }
@@ -88,7 +90,7 @@ impl Lexer {
             token: String::new(),
             valid_num: Regex::new(r"\d*").unwrap(),
             valid_chars: Regex::new(r"\D+[[:word:]]*").unwrap(),
-            valid_symb: Regex::new(r"[\{\}\(\)=;\*\+\-/#!,\t\n\[\]]").unwrap(),
+            valid_symb: Regex::new(r"[\{\}\(\)=;.\*\+\-/#!,\t\n\[\]]").unwrap(),
             check: false,
         }
     }
@@ -166,7 +168,7 @@ impl Lexer {
             result = Some(Expression::Number(
                 self.token.parse::<f32>().unwrap_or_else(|e| {
                     println!(
-                        "Got this error message ({}) when parsing this: {}",
+                        "Got this er!ror message ({}) when parsing this: {}",
                         e, self.token
                     );
 
@@ -211,14 +213,14 @@ impl Lexer {
                 self.token.push(c);
             }
             match self.token.as_str() {
-                "fn" => {
+                "fn" | "new" | "class" => {
                     result = Some(Expression::Key(self.token.to_string()));
                     self.token.clear();
                 }
-                "print" => {
-                    result = Some(Expression::Key(self.token.to_string()));
-                    self.token.clear();
-                }
+                // "print" | "println" => {
+                //     result = Some(Expression::Key(self.token.to_string()));
+                //     self.token.clear();
+                // }
                 "return" => {
                     result = Some(Expression::Key(self.token.to_string()));
                     self.token.clear();
@@ -256,12 +258,13 @@ impl Lexer {
         //     c.to_string()
         // );
         match c {
-            ',' | '\t' | ' ' | '\n' | '\r' => None,
+            '\t' | ' ' | '\n' | '\r' => None,
             '"' => {
                 self.current_state = State::EmString;
                 self.token.clear();
                 None
             }
+            ',' => Some(Expression::Comma),
             '{' => Some(Expression::Lbrace),
             '}' => Some(Expression::Rbrace),
             '(' => Some(Expression::Lparen),

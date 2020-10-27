@@ -1,6 +1,6 @@
 [package]
 name = "gem_cli"
-version = "0.0.2"
+version = "0.0.3"
 authors = ["AnActualEmerald <kevinliger13@gmail.com>"]
 edition = "2018"
 
@@ -9,3 +9,6 @@ edition = "2018"
 [dependencies]
 gem = {path = "../gem"}
 clap = "2.33.0"
+rustyline = "6.3.0"
+directories = "3.0.1"
+console = "0.12.0"

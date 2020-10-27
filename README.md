@@ -6,25 +6,20 @@ EmeraldScript is an interpreted programming language. The interpreter itself is 
 
 ### How is EmeraldScript?
 
-It's doing okay. Currently most of the basic features you would expect are supported and stable, including for and while loops, if-elif-else statements, functions, and obviously variables. You can check out the [issues](https://github.com/AnActualEmerald/EmeraldScript/issues) to see what I'm planning to work on next, or to request something.
+It's doing great! Currently all of the basic features you would expect are supported and stable, including for and while loops, if-elif-else statements, functions, variables, and even objects in the style of Python. You can check out the [issues](https://github.com/AnActualEmerald/EmeraldScript/issues) to see what I'm planning to work on next, or to request something.
 
 ### What does it look like?
 
-Right now, EmeraldScript's syntax is a combination of rust, js, and python. This isn't exactly by design, and will probably change in the future. If you run the `examples` subcommand on the CLI, it will generate a few example files to help get you started (You can also run the cli itself to open a REPL to play around in).
+Right now, EmeraldScript's syntax is a combination of Rust, JS, and Python. If you run the `examples` command in the CLI, it will generate a few example files to help get you started (You can also run the CLI itself to open a REPL to play around in).
 Here's a look at one:
 
 ```
-fn main(){
+fn main(args){
   i = "Hello, World!";
-  print i;
+  println(i);
 }
 ```
-This is, obviously, a hello world program. There are a few things to note:
-1. Variable declaration doesn't require a keyword
-2. "print" is a keyword, and not a function
-3. The code is in a main method
-
-The first two points will likely change as I get more of the most basic features ironed out and begin to nail down more of the design aspects of the language. The third is something that I want to keep, as I feel like having a main function makes it clear where things will actually start executing.
+This is, obviously, a hello world program. It showcases the use of a main function as an entry point that also takes in arguments from the command line, as well as the relatively new `println` function, which used to be a keyword. At this point I don't forsee any major syntax changes, and I may abandon the idea of enforcing typing altogether at well. 
 
 If you want to contribute ~~for some reason~~ , run in to some kind of bug, or want to request a feature, feel free to get in touch. Though be warned that I'm not considering this project very high priority or very serious, so I may be slow to respond.
 

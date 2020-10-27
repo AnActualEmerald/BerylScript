@@ -13,10 +13,7 @@ fn generate_literals() {
     let expected_string = Value::EmString("Test".to_owned());
     let expected_number = Value::Float(69.0);
 
-    let mut r = Runtime {
-        heap: HashMap::new(),
-        returning: false,
-    };
+    let mut r = Runtime::new();
     let mut stack = StackFrame {
         stack: HashMap::new(),
     };
@@ -41,10 +38,7 @@ fn assign_vars() {
 
     let expected = Value::EmString("this is a test".to_owned());
 
-    let mut r = Runtime {
-        heap: HashMap::new(),
-        returning: false,
-    };
+    let mut r = Runtime::new();
     let mut stack = StackFrame {
         stack: HashMap::new(),
     };
@@ -70,13 +64,8 @@ fn looping() {
         )),
     )]);
     // let loop_test = ExprNode::Loop(Box::new(ty), Box::new(condition), Box::new(block));
-    let mut r = Runtime {
-        heap: HashMap::new(),
-        returning: false,
-    };
-    let mut stack = StackFrame {
-        stack: HashMap::new(),
-    };
+    let mut r = Runtime::new();
+    let mut stack = StackFrame::new();
     stack.set_var(String::from("i"), Value::Float(0.0 as f32));
     r.do_loop(&ty, &condition, &block, &mut stack)
         .expect("Error executing loop");

@@ -1,7 +1,9 @@
 #[cfg(test)]
 mod tests;
 mod types;
+mod builtins;
 
+use crate::interpreter::types::EmObject;
 use crate::interpreter::types::Indexable;
 
 use super::lexer::Expression;
@@ -21,6 +23,7 @@ pub enum Value {
     //Char(u8),
     Name(String),
     Function(Expression, Vec<Value>, ExprNode),
+    Object(EmObject),
 }
 
 impl std::fmt::Display for Value {
@@ -34,15 +37,29 @@ impl std::fmt::Display for Value {
             Value::Function(n, p, _) => write!(f, "{:?}({:?})", n, p),
             Value::EmBool(b) => write!(f, "{}", b),
             Value::EmArray(v) => {
-                let mut tmp = format!("[");
+                let mut tmp = String::new();
                 for val in v.iter() {
-                    tmp = format!("{}{}, ", tmp, val);
+                    if let Value::EmString(_) = **val{
+                        tmp = format!("{}\"{}\", ", tmp, val);
+                    }else {
+                        tmp = format!("{}{}, ", tmp, val);
+
+                    }
                 }
                 tmp.pop();
                 tmp.pop();
-                tmp.push(']');
-
-                write!(f, "{}", tmp)
+                write!(f, "[{}]", tmp)
+            }
+            Value::Object(e) => {
+                if let Some(Value::Function(_, _, t)) = e.get_prop("~display") {
+                    let mut rt = Runtime::new();
+                    let mut gf = StackFrame::new();
+                    gf.set_var(String::from("self"), self.clone());
+                    let res = repl_run(t.clone(), &mut rt, &mut gf).unwrap_or_default();
+                    write!(f, "{}", res)
+                } else {
+                    write!(f, "{:?}", e.members)
+                }
             }
         }
     }
@@ -92,6 +109,7 @@ pub struct Runtime {
     // tree: ExprNode,
     // stack: Vec<StackFrame>,
     heap: HashMap<String, RefCell<Value>>,
+    functions: HashMap<String, Box<dyn Fn(Vec<Value>) -> Value>>,
     returning: bool,
 }
 
@@ -108,28 +126,32 @@ pub fn repl_run(
 }
 
 ///Walks through the provided tree and executes all the nodes
-pub fn run(tree: ExprNode) {
+pub fn run(tree: ExprNode, args: ExprNode) {
     let mut r = Runtime::new();
     // r.find_global_vars();
     let mut glob_frame = StackFrame::new();
+
     //define all functions and any global variables
     if let Err(e) = r.walk_tree(&tree, &mut glob_frame) {
         println!("Interpreter crashed because: {}", e);
     }
 
-    if let Err(e) = r.do_call(&Expression::Ident("main".to_owned()), &[], &mut glob_frame) {
+    if let Err(e) = r.do_call(&Expression::Ident("main".to_owned()), &[args], &mut glob_frame) {
         println!("Interpreter crashed because: {}", e);
     }
     // println!("{:?}", glob_frame.stack);
 }
 
-// Basically *is* the interpreter, walks throught the AST and executes the nodes as needed
+// Basically *is* the interpreter, walks through the AST and executes the nodes as needed
 impl Runtime {
+    //TODO: Reduce the number of copies ins this code
+
     ///Creates a new Runtime with an empty heap
     pub fn new() -> Runtime {
         Runtime {
             heap: HashMap::new(),
             returning: false,
+            functions: builtins::get_functions(),
         }
     }
 
@@ -142,9 +164,6 @@ impl Runtime {
         let res: Value;
         match node {
             ExprNode::Block(v) => {
-                // let mut n_frame = StackFrame {
-                //     stack: HashMap::new(),
-                // };
                 let mut ret = Value::Null;
                 for e in v.iter() {
                     match e {
@@ -169,6 +188,7 @@ impl Runtime {
             }
             ExprNode::Operation(o, l, r) => res = self.do_operation(&**o, &**l, &**r, frame)?,
             ExprNode::Call(ex, n) => res = self.do_call(&**ex, &*n, frame)?,
+            ExprNode::MethodCall(n, args) => res = self.do_method(n, args, frame)?,
             ExprNode::StrLiteral(s) => res = Value::EmString(*s.clone()),
             ExprNode::NumLiteral(n) => res = Value::Float(**n),
             ExprNode::BoolLiteral(b) => res = Value::EmBool(*b),
@@ -181,6 +201,8 @@ impl Runtime {
             }
             ExprNode::Array(v) => res = self.create_array(v, frame)?,
             ExprNode::Index(ident, index) => res = self.index_array(ident, index, frame)?,
+            ExprNode::New(name, args) => res = self.do_init(name, args, frame)?,
+            ExprNode::Class(name, body) => res = self.define_class(&**name, &**body, frame)?,
             _ => res = Value::Null,
         }
         //Reset the returning flag, since we're returning whatever value we got anyways
@@ -280,8 +302,9 @@ impl Runtime {
             Expression::Equal => match left {
                 ExprNode::Name(n) => {
                     let v = self.walk_tree(&right, frame)?;
-                    frame.set_var(n.to_string(), v);
-                    Ok(Value::Null)
+                    // println!("Assigning variable: {:?}", v);
+                    frame.set_var(n.to_string(), v.clone());
+                    Ok(v)
                 }
                 ExprNode::Index(n, i) => {
                     let name = if let ExprNode::Name(s) = *n.clone() {
@@ -291,25 +314,67 @@ impl Runtime {
                     };
                     let index = self.walk_tree(i, frame)?;
                     let val = self.walk_tree(right, frame)?;
-                    frame.update_array_index(&name, index, val);
+                    frame.update_array_index(&name, index, val.clone());
 
-                    Ok(Value::Null)
+                    Ok(val)
                 }
                 ExprNode::Operation(o, l, r) => {
-                    if **o != Expression::Lbracket {
-                        Err(format!("Cannot assign value to operation {:?}", left))
-                    } else {
-                        let val = self.walk_tree(right, frame)?;
-                        frame.update_nested_array(l, r, Some(val), true);
-                        Ok(Value::Null)
+                    match **o {
+                        Expression::Lbracket => {
+                            let val = self.walk_tree(right, frame)?;
+                            frame.update_nested_array(l, r, Some(val.clone()), true);
+                            Ok(val)
+                        }
+                        Expression::Operator(op) => {
+                            match op {
+                                '.' => {
+                                    let name = if let ExprNode::Name(n) = &**l {
+                                        *n.clone()
+                                    }else{
+                                        return Err(format!("Expected name, got {:?}", l));
+                                    };
+                                    let val = self.walk_tree(right, frame)?;
+
+                                    if let Some(Value::Object(e)) = frame.get_var_mut(&name.to_string()){
+                                        let prop = if let ExprNode::Name(n) = &**r {
+                                            n
+                                        }else {
+                                            return Err(format!("Unexpected symbol {:?}", r));
+                                        };
+
+                                        e.set_prop(*prop.clone(), Box::new(val.clone()));
+                                        Ok(val)
+                                    }else {
+                                        Err(format!("Unexpected {:?}", name))
+                                    }
+                                }
+                                _ => Err(format!("Unexpected operator {}", op))
+                            }
+                        }
+                        _ => Err(format!("Unexpected symbol {:?}", o))
                     }
                 }
                 _ => Err(format!("Error assigning to variable {:?}", left)),
             },
 
             Expression::Operator(o) => {
+                if *o == '.' {
+                    // let val = self.walk_tree(&left, frame)?;
+                    return if let Value::Object(obj) = self.walk_tree(&left, frame)? {
+                        if let Some(v) = obj.get_prop(&right.inner()) {
+                            Ok(v.clone())
+                        }else {
+                            Err(format!("{} has no property {}", obj, right.inner()))
+                        }
+                    } else {
+                        Err(format!("{:?} is not an object", left))
+                    }
+
+                }
                 let l_p = self.walk_tree(&left, frame)?;
                 let r_p = self.walk_tree(&right, frame)?;
+
+               
 
                 let f = match l_p {
                     Value::Float(f) => f,
@@ -320,6 +385,9 @@ impl Runtime {
                             0.0 as f32
                         }
                     }
+                    Value::EmString(s) => {
+                        return Ok(Value::EmString(format!("{}{}", s, r_p)))
+                    },
                     _ => 0.0 as f32,
                 };
 
@@ -348,8 +416,8 @@ impl Runtime {
                 }
             }
             Expression::BoolOp(op) => {
-                let l_p = self.walk_tree(&left, frame);
-                let r_p = self.walk_tree(&right, frame);
+                let l_p = self.walk_tree(&left, frame)?;
+                let r_p = self.walk_tree(&right, frame)?;
                 match op.as_str() {
                     "==" => Ok(Value::EmBool(l_p == r_p)),
                     "!=" => Ok(Value::EmBool(l_p != r_p)),
@@ -366,47 +434,27 @@ impl Runtime {
         }
     }
 
-    ///Handles keywords like "print" and "return"
     fn keyword(
         &mut self,
         name: &Expression,
         value: &ExprNode,
         frame: &mut StackFrame,
     ) -> Result<Value, String> {
-        if let Expression::Key(s) = name {
+        if let Expression::Key(s) = name { 
+            let tmp = match value {
+                        ExprNode::Call(n, args) => 
+                            self.do_call(n, args, frame)?,
+                        
+                        _ => self.walk_tree(&value, frame)?,
+                        };
             match s.as_str() {
-                "print" => {
-                    // println!("DEBUG: value={:?}", value);
-                    match value {
-                        ExprNode::Call(n, args) => {
-                            println!("{}", self.do_call(n, args, frame)?);
-                        }
-                        _ => {
-                            let tmp = self.walk_tree(&value, frame)?;
-                            // println!("DEBUG: tmp={:?}", tmp);
-                            match tmp {
-                                Value::Name(n) => println!("{}", frame.get_var(&n)),
-                                Value::Null => println!("null"),
-                                Value::Function(_, _, _) => {
-                                    println!("{}", self.walk_tree(&value, frame)?)
-                                } // _ => {}
-                                _ => println!("{}", tmp),
-                            }
-                        }
-                    }
-                }
                 "return" => {
                     self.returning = true;
-                    match value {
-                        ExprNode::Call(n, args) => {
-                            return self.do_call(n, args, frame);
-                        }
-                        _ => {
-                            return self.walk_tree(&value, frame);
-                        }
-                    }
+                    return Ok(tmp);
                 }
-                _ => {}
+                _ => {
+                   
+                }
             }
         }
 
@@ -417,28 +465,35 @@ impl Runtime {
     fn do_call(
         &mut self,
         name: &Expression,
-        param: &[ExprNode],
+        args: &[ExprNode],
         frame: &mut StackFrame,
     ) -> Result<Value, String> {
         match name {
-            Expression::Key(_) => self.keyword(name, &param[0], frame),
+            Expression::Key(_) => self.keyword(name, &args[0], frame),
             Expression::Ident(n) => {
+                //check if there is a built-in function to use
+                if self.functions.contains_key(n) {
+                    let tmp = args.iter()
+                    .map(|e| self.walk_tree(e, frame).unwrap())
+                    .collect();
+                    let func = self.functions.get(n).unwrap();
+                    return Ok(func(tmp))
+                }
+
                 if let Some(func) = self.heap.get(n) {
                     //I'd really like to not have to borrow here
                     match &*func.clone().borrow() {
                         Value::Function(_, params, body) => {
-                            if params.len() != param.len() {
+                            if params.len() != args.len() {
                                 Err(format!(
                                     "Expected {} arguments for {}, got {}",
                                     params.len(),
                                     n,
-                                    param.len()
+                                    args.len()
                                 ))
                             } else {
-                                let mut func_frame = StackFrame {
-                                    stack: HashMap::new(),
-                                };
-                                for (i, e) in param.iter().enumerate() {
+                                let mut func_frame = StackFrame::new();
+                                for (i, e) in args.iter().enumerate() {
                                     if let Value::Name(arg) = &params[i] {
                                         let val = self.walk_tree(&e, frame)?;
                                         match val {
@@ -471,6 +526,50 @@ impl Runtime {
         }
     }
 
+    fn do_method(&mut self, method: &ExprNode, args: &Vec<ExprNode>, frame: &mut StackFrame) -> Result<Value, String> {
+        if let ExprNode::Operation(_, name, member) = method {
+            if let Value::Object(e) = self.walk_tree(&**name, frame)?{
+                let func = e.get_prop(&*member.inner());
+                match func {
+                    Some(Value::Function(n, p, body)) => {
+                        if args.len() != p.len() - 1 {
+                            Err(format!(
+                                "Method {} for {} takes {} arguments, found {}",
+                                n,
+                                e.get_prop("~name").unwrap(),
+                                p.len(),
+                                args.len()
+                            ))
+                        } else {
+                            let mut func_frame = StackFrame::new();
+                            func_frame.set_var(String::from("self"), Value::Object(e.clone()));
+                            for (i, e) in args.iter().enumerate() {
+                                if let Value::Name(arg) = &p[i+1] {
+                                    let val = self.walk_tree(&e, frame)?;
+                                    match val {
+                                        Value::Name(n) => {
+                                            let tmp = frame.get_var(&n).clone();
+                                            func_frame.set_var(arg.to_string(), tmp);
+                                            //I'd really like to not have to copy here
+                                        }
+                                        _ => func_frame.set_var(arg.to_string(), val),
+                                    }
+                                }
+                            }
+                            self.walk_tree(body, &mut func_frame)
+                        }
+                    }
+                    _ => {
+                        Err(format!("Expected function, got {:?}", func))
+                    }
+                }
+            }else {
+                Err(format!("Expected object, got {:?}", self.walk_tree(name, frame)?))
+            }
+        } else {
+            Err(format!("Unexpected expression {:?}", method))
+        }
+    }
     ///Performs an if statement and any of its relevant branches
     fn do_if(
         &mut self,
@@ -486,6 +585,63 @@ impl Runtime {
         } else {
             self.walk_tree(branches, frame)
         }
+    }
+
+
+
+    fn do_init(
+        &mut self,
+        name: &Expression,
+        init_args: &Vec<ExprNode>,
+        frame: &mut StackFrame,
+    ) -> Result<Value, String> {
+        if let Expression::Ident(n) = name{
+            let class = match self.heap.get(n) {
+                Some(val) => {
+                    if let Value::Object(e) = val.borrow().clone(){
+                        e
+                    }else {
+                        return Err(format!("Expected class, got {}", val.borrow()));
+                    }
+                },
+                None => return Err(format!("Class {} is not defined", name)),
+
+            };
+        if let Some(Value::Function(_, params, body)) = class.get_prop("~init") {
+            if init_args.len() != params.len() - 1 {
+                Err(format!(
+                    "Contrsuctor for {} takes {} arguments, found {}",
+                    class.get_prop("~name").unwrap(),
+                    params.len(),
+                    init_args.len()
+                ))
+            } else {
+                let mut func_frame = StackFrame::new();
+                func_frame.set_var(String::from("self"), Value::Object(class.clone()));
+                for (i, e) in init_args.iter().enumerate() {
+                    if let Value::Name(arg) = &params[i+1] {
+                        let val = self.walk_tree(&e, frame)?;
+                        match val {
+                            Value::Name(n) => {
+                                let tmp = frame.get_var(&n).clone();
+                                func_frame.set_var(arg.to_string(), tmp);
+                                //I'd really like to not have to copy here
+                            }
+                            _ => func_frame.set_var(arg.to_string(), val),
+                        }
+                    }
+                }
+                self.walk_tree(body, &mut func_frame)?;
+                
+                //should figure out a way to get ownership from a stackframe
+                Ok(func_frame.get_var("self").clone())
+            }
+        } else {
+            Ok(Value::Object(class))
+        }
+    }else {
+        Err(format!("Expected object, found {:?}", name))
+    }
     }
 
     ///Defines an array and saves it to the current stackframe
@@ -515,6 +671,42 @@ impl Runtime {
         } else {
             Err(format!("Index was not a numeber"))
         }
+    }
+
+    fn define_class(&mut self, name: &Expression, body: &ExprNode, frame: &mut StackFrame) -> Result<Value, String> {
+        let mut members = HashMap::new();
+        let class = if let Expression::Ident(s) = name{
+            s
+        }else {
+            return Err("Expected an identifier".to_string());
+        }; 
+
+        //the name property will be the name of the class for now, this might change in the future
+        members.insert("~name".to_string(), Box::new(Value::EmString(class.clone())));
+
+        if let ExprNode::Block(v) = body {
+            for node in v {
+                let val = self.walk_tree(node, frame)?;
+                match &val {
+                    Value::Function(n, _, _) => {
+                        let fn_name = if let Expression::Ident(s) =  n{
+                            s
+                        }else {
+                            return Err("Expected identifier".to_owned());
+                        };
+                        members.insert(fn_name.clone(), Box::new(val.clone()));
+                    }
+                    er => {
+                        return Err(format!("Unexpected {:?} in class definition", er));
+                    }
+                }
+            }
+        }
+
+        let tmp = Value::Object(EmObject {members: members});
+        self.heap.insert(class.clone(), RefCell::new(tmp.clone()));
+
+        Ok(tmp)
     }
 }
 
@@ -547,6 +739,14 @@ impl StackFrame {
             &self.stack[name]
         } else {
             &Value::Null
+        }
+    }
+
+    fn get_var_mut(&mut self, name: &str) -> Option<&mut Value>{
+        if self.stack.contains_key(name){
+            self.stack.get_mut(name)
+        }else{
+            None
         }
     }
 
