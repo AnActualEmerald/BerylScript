@@ -169,6 +169,7 @@ pub fn read_line<'a>(
     } else {
         Vec::new()
     };
+
     
     for exp in iter.take_while(|e| !(delim.contains(e)|| Expression::Lbrace == **e)) {
         match exp {
@@ -242,12 +243,29 @@ fn expr(
                     )
                 }
             }
-            Expression::Operator(_) => {
+            Expression::Operator(op) => {
+                if op == &'.' {
+                    let tmp = ExprNode::Operation(
+                    Box::new(t.unwrap().clone()),
+                    Box::new(make_node(cur.unwrap())),
+                    Box::new(make_node(iter.next().unwrap())));
+                    node = if let Some(Expression::Equal) = iter.peek() {
+                        //if there is an equal sign after the dot operator, then use the dot operation as the left side of it
+                        iter.next();
+                        ExprNode::Operation(
+                            Box::new(Expression::Equal),
+                            Box::new(tmp),
+                            Box::new(read_line(None, iter, &vec![&Expression::Semicolon])?))
+                        }else {
+                            tmp
+                        };
+                }else{
                 node = ExprNode::Operation(
                     Box::new(t.unwrap().clone()),
                     Box::new(make_node(cur.unwrap())),
                     Box::new(read_line(None, iter, &vec![&Expression::Semicolon])?),
                 )
+                }
             }
             Expression::CompoundOp(_) => {
                 node = make_compound_op(make_node(cur.unwrap()), t.unwrap(), iter)?;
@@ -439,9 +457,9 @@ fn find_params(
 ) -> Result<Vec<ExprNode>, String> {
     let mut params = vec![];
     loop {
-        println!("{:?} is next in params", peekable.peek());
-        println!("{:?} is the accumulated params", params);
-        std::io::stdin().read_line(&mut String::new());
+        // println!("{:?} is next in params", peekable.peek());
+        // println!("{:?} is the accumulated params", params);
+        // std::io::stdin().read_line(&mut String::new());
         match peekable.peek() {
             Some(Expression::Lparen) => {
                 peekable.next();
@@ -556,28 +574,27 @@ fn make_array(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, Str
 }
 
 fn define_class(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, String> {
-    println!("defining class");
+    // println!("defining class");
     let name = if let Some(Expression::Ident(_)) = iter.peek(){
         iter.next().unwrap()
     }else {
         return Err(format!("Expected identifier, found {:?}", iter.peek()));
     };
 
-    println!("{:?}", iter.next());
+    iter.next();
     let body = make_block(iter)?;
 
     Ok(ExprNode::Class(Box::new(name.clone()), Box::new(body)))
 }
 
 fn new_object(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, String> {
-    println!("Make a new object");
     let name = if let Some(Expression::Ident(_)) = iter.peek() {
         iter.next().unwrap()
     }else {
         return Err(format!("Expected identifier, found {:?}", iter.peek()));
     };
 
-    println!("{:?}", iter.next());
+    iter.next();
     match find_params(iter) {
         Ok(params) => Ok(ExprNode::New(Box::new(name.clone()), params)),
         Err(e) => Err(e)
