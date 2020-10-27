@@ -18,6 +18,7 @@ pub enum ExprNode {
     BoolLiteral(bool),
     Name(Box<String>),
     Call(Box<Expression>, Vec<ExprNode>), //name, args
+    MethodCall(Box<ExprNode>, Vec<ExprNode>),
     Block(Vec<ExprNode>),
     Func(Box<Expression>, Vec<ExprNode>, Box<ExprNode>), //Name, params, function body
     Class(Box<Expression>, Box<ExprNode>), //name, body
@@ -176,12 +177,43 @@ pub fn read_line<'a>(
             Expression::Lbracket => {
                 return make_array(iter);
             }
-            Expression::Operator(_) => {
-                return Ok(ExprNode::Operation(
+            Expression::Operator(op) => {
+                return Ok(if op == &'.' {
+                    let tmp = ExprNode::Operation(
                     Box::new(exp.clone()),
                     Box::new(expr(&mut accum.iter().peekable(), None)?),
-                    Box::new(read_line(None, iter, delim)?),
-                ));
+                    Box::new(make_node(iter.next().unwrap())));
+                    
+                        match iter.peek() {
+                            Some(Expression::Operator(_)) => {
+                                let operator = iter.next().unwrap();
+                                ExprNode::Operation(
+                                    Box::new(operator.clone()),
+                                    Box::new(tmp),
+                                    Box::new(read_line(None, iter, &vec![&Expression::Semicolon])?))
+                            }
+                            Some(Expression::Equal) => {
+                                //if there is an equal sign after the dot operator, then use the dot operation as the left side of it
+                                iter.next();
+                                ExprNode::Operation(
+                                    Box::new(Expression::Equal),
+                                    Box::new(tmp),
+                                    Box::new(read_line(None, iter, &vec![&Expression::Semicolon])?))
+                            },
+                            Some(Expression::Lparen) => {
+                                iter.next();
+                                ExprNode::MethodCall(Box::new(tmp), find_params(iter)?)
+                            }
+                            _ => tmp,
+                        }
+
+                }else{
+                ExprNode::Operation(
+                    Box::new(exp.clone()),
+                    Box::new(expr(&mut accum.iter().peekable(), None)?),
+                    Box::new(read_line(None, iter, &vec![&Expression::Semicolon])?),
+                )
+                });
             }
             Expression::BoolOp(_) => {
                 return Ok(ExprNode::Operation(
@@ -249,16 +281,30 @@ fn expr(
                     Box::new(t.unwrap().clone()),
                     Box::new(make_node(cur.unwrap())),
                     Box::new(make_node(iter.next().unwrap())));
-                    node = if let Some(Expression::Equal) = iter.peek() {
-                        //if there is an equal sign after the dot operator, then use the dot operation as the left side of it
-                        iter.next();
-                        ExprNode::Operation(
-                            Box::new(Expression::Equal),
-                            Box::new(tmp),
-                            Box::new(read_line(None, iter, &vec![&Expression::Semicolon])?))
-                        }else {
-                            tmp
-                        };
+                    node = 
+                        match iter.peek() {
+                            Some(Expression::Operator(_)) => {
+                                let operator = iter.next().unwrap();
+                                ExprNode::Operation(
+                                    Box::new(operator.clone()),
+                                    Box::new(tmp),
+                                    Box::new(read_line(None, iter, &vec![&Expression::Semicolon])?))
+                            }
+                            Some(Expression::Equal) => {
+                                //if there is an equal sign after the dot operator, then use the dot operation as the left side of it
+                                iter.next();
+                                ExprNode::Operation(
+                                    Box::new(Expression::Equal),
+                                    Box::new(tmp),
+                                    Box::new(read_line(None, iter, &vec![&Expression::Semicolon])?))
+                            },
+                            Some(Expression::Lparen) => {
+                                iter.next();
+                                ExprNode::MethodCall(Box::new(tmp), find_params(iter)?)
+                            }
+                            _ => tmp,
+                        }
+
                 }else{
                 node = ExprNode::Operation(
                     Box::new(t.unwrap().clone()),

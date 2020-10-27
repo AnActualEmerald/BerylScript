@@ -54,6 +54,7 @@ impl std::fmt::Display for Value {
                 if let Some(Value::Function(_, _, t)) = e.get_prop("~display") {
                     let mut rt = Runtime::new();
                     let mut gf = StackFrame::new();
+                    gf.set_var(String::from("self"), self.clone());
                     let res = repl_run(t.clone(), &mut rt, &mut gf).unwrap_or_default();
                     write!(f, "{}", res)
                 } else {
@@ -187,6 +188,7 @@ impl Runtime {
             }
             ExprNode::Operation(o, l, r) => res = self.do_operation(&**o, &**l, &**r, frame)?,
             ExprNode::Call(ex, n) => res = self.do_call(&**ex, &*n, frame)?,
+            ExprNode::MethodCall(n, args) => res = self.do_method(n, args, frame)?,
             ExprNode::StrLiteral(s) => res = Value::EmString(*s.clone()),
             ExprNode::NumLiteral(n) => res = Value::Float(**n),
             ExprNode::BoolLiteral(b) => res = Value::EmBool(*b),
@@ -524,6 +526,50 @@ impl Runtime {
         }
     }
 
+    fn do_method(&mut self, method: &ExprNode, args: &Vec<ExprNode>, frame: &mut StackFrame) -> Result<Value, String> {
+        if let ExprNode::Operation(_, name, member) = method {
+            if let Value::Object(e) = self.walk_tree(&**name, frame)?{
+                let func = e.get_prop(&*member.inner());
+                match func {
+                    Some(Value::Function(n, p, body)) => {
+                        if args.len() != p.len() - 1 {
+                            Err(format!(
+                                "Method {} for {} takes {} arguments, found {}",
+                                n,
+                                e.get_prop("~name").unwrap(),
+                                p.len(),
+                                args.len()
+                            ))
+                        } else {
+                            let mut func_frame = StackFrame::new();
+                            func_frame.set_var(String::from("self"), Value::Object(e.clone()));
+                            for (i, e) in args.iter().enumerate() {
+                                if let Value::Name(arg) = &p[i+1] {
+                                    let val = self.walk_tree(&e, frame)?;
+                                    match val {
+                                        Value::Name(n) => {
+                                            let tmp = frame.get_var(&n).clone();
+                                            func_frame.set_var(arg.to_string(), tmp);
+                                            //I'd really like to not have to copy here
+                                        }
+                                        _ => func_frame.set_var(arg.to_string(), val),
+                                    }
+                                }
+                            }
+                            self.walk_tree(body, &mut func_frame)
+                        }
+                    }
+                    _ => {
+                        Err(format!("Expected function, got {:?}", func))
+                    }
+                }
+            }else {
+                Err(format!("Expected object, got {:?}", self.walk_tree(name, frame)?))
+            }
+        } else {
+            Err(format!("Unexpected expression {:?}", method))
+        }
+    }
     ///Performs an if statement and any of its relevant branches
     fn do_if(
         &mut self,
