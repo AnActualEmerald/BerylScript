@@ -72,6 +72,7 @@ fn create_examples(path: &PathBuf) {
         include_str!("examples/example1.em"),
         include_str!("examples/example2.em"),
         include_str!("examples/example3.em"),
+        include_str!("examples/example4.em"),
         // include_str!("examples/example4.em"),
     ];
 
