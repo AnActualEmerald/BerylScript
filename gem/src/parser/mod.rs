@@ -18,8 +18,11 @@ pub enum ExprNode {
     BoolLiteral(bool),
     Name(Box<String>),
     Call(Box<Expression>, Vec<ExprNode>), //name, args
+    MethodCall(Box<ExprNode>, Vec<ExprNode>),
     Block(Vec<ExprNode>),
     Func(Box<Expression>, Vec<ExprNode>, Box<ExprNode>), //Name, params, function body
+    Class(Box<Expression>, Box<ExprNode>), //name, body
+    New(Box<Expression>, Vec<ExprNode>), //name params
     Loop(Box<String>, Box<ExprNode>, Box<ExprNode>),     //loop keyword, condition, block
     ForLoopDec(Box<ExprNode>, Box<ExprNode>, Box<ExprNode>), //declaration, condition, incrementation
     Statement(Box<ExprNode>),
@@ -30,6 +33,20 @@ pub enum ExprNode {
     Index(Box<ExprNode>, Box<ExprNode>), //array identifier, inedex
     Illegal(Option<Expression>),
     EOF,
+}
+
+impl ExprNode {
+    ///Returns the inner value of a node as a string if possible
+    pub fn inner(&self) -> String{
+        match self {
+            ExprNode::StrLiteral(l) => l.to_string(),
+            ExprNode::NumLiteral(l) => l.to_string(),
+            ExprNode::BoolLiteral(l) => l.to_string(),
+            ExprNode::Name(l) => l.to_string(),
+            _ => panic!("Can't unwrap {:?}", self)
+
+        }
+    }
 }
 
 ///Starts the parser
@@ -81,6 +98,8 @@ fn key_word(
             vec![read_line(None, iter, &vec![])?],
         )),
         "fn" => def_func(iter, cur),
+        "class" => define_class(iter), //get the name of the class and collect the block that should follow
+        "new" => new_object(iter), //call to a function that passes in the class name and the args for the constructor
         "return" => Ok(ExprNode::ReturnVal(Box::new(expr(iter, cur)?))),
         "true" => Ok(ExprNode::BoolLiteral(true)),
         "false" => Ok(ExprNode::BoolLiteral(false)),
@@ -151,18 +170,50 @@ pub fn read_line<'a>(
     } else {
         Vec::new()
     };
+
     
     for exp in iter.take_while(|e| !(delim.contains(e)|| Expression::Lbrace == **e)) {
         match exp {
             Expression::Lbracket => {
                 return make_array(iter);
             }
-            Expression::Operator(_) => {
-                return Ok(ExprNode::Operation(
+            Expression::Operator(op) => {
+                return Ok(if op == &'.' {
+                    let tmp = ExprNode::Operation(
                     Box::new(exp.clone()),
                     Box::new(expr(&mut accum.iter().peekable(), None)?),
-                    Box::new(read_line(None, iter, delim)?),
-                ));
+                    Box::new(make_node(iter.next().unwrap())));
+                    
+                        match iter.peek() {
+                            Some(Expression::Operator(_)) => {
+                                let operator = iter.next().unwrap();
+                                ExprNode::Operation(
+                                    Box::new(operator.clone()),
+                                    Box::new(tmp),
+                                    Box::new(read_line(None, iter, &vec![&Expression::Semicolon])?))
+                            }
+                            Some(Expression::Equal) => {
+                                //if there is an equal sign after the dot operator, then use the dot operation as the left side of it
+                                iter.next();
+                                ExprNode::Operation(
+                                    Box::new(Expression::Equal),
+                                    Box::new(tmp),
+                                    Box::new(read_line(None, iter, &vec![&Expression::Semicolon])?))
+                            },
+                            Some(Expression::Lparen) => {
+                                iter.next();
+                                ExprNode::MethodCall(Box::new(tmp), find_params(iter)?)
+                            }
+                            _ => tmp,
+                        }
+
+                }else{
+                ExprNode::Operation(
+                    Box::new(exp.clone()),
+                    Box::new(expr(&mut accum.iter().peekable(), None)?),
+                    Box::new(read_line(None, iter, &vec![&Expression::Semicolon])?),
+                )
+                });
             }
             Expression::BoolOp(_) => {
                 return Ok(ExprNode::Operation(
@@ -224,12 +275,43 @@ fn expr(
                     )
                 }
             }
-            Expression::Operator(_) => {
+            Expression::Operator(op) => {
+                if op == &'.' {
+                    let tmp = ExprNode::Operation(
+                    Box::new(t.unwrap().clone()),
+                    Box::new(make_node(cur.unwrap())),
+                    Box::new(make_node(iter.next().unwrap())));
+                    node = 
+                        match iter.peek() {
+                            Some(Expression::Operator(_)) => {
+                                let operator = iter.next().unwrap();
+                                ExprNode::Operation(
+                                    Box::new(operator.clone()),
+                                    Box::new(tmp),
+                                    Box::new(read_line(None, iter, &vec![&Expression::Semicolon])?))
+                            }
+                            Some(Expression::Equal) => {
+                                //if there is an equal sign after the dot operator, then use the dot operation as the left side of it
+                                iter.next();
+                                ExprNode::Operation(
+                                    Box::new(Expression::Equal),
+                                    Box::new(tmp),
+                                    Box::new(read_line(None, iter, &vec![&Expression::Semicolon])?))
+                            },
+                            Some(Expression::Lparen) => {
+                                iter.next();
+                                ExprNode::MethodCall(Box::new(tmp), find_params(iter)?)
+                            }
+                            _ => tmp,
+                        }
+
+                }else{
                 node = ExprNode::Operation(
                     Box::new(t.unwrap().clone()),
                     Box::new(make_node(cur.unwrap())),
                     Box::new(read_line(None, iter, &vec![&Expression::Semicolon])?),
                 )
+                }
             }
             Expression::CompoundOp(_) => {
                 node = make_compound_op(make_node(cur.unwrap()), t.unwrap(), iter)?;
@@ -437,6 +519,7 @@ fn find_params(
             Some(Expression::Lbrace) => {
                 return Err("Can't have block in function parameters".to_owned());
             }
+            None => break,
             _ => params.push(read_line(None, peekable, &vec![&Expression::Comma, &Expression::Rparen])?),
         }
     }
@@ -533,5 +616,33 @@ fn make_array(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, Str
             None => return Ok(ExprNode::Array(res)),//return Err("Unexpected end of file".to_owned()),
             _ => res.push(read_line(None, iter, &vec![&Expression::Comma, &Expression::Rbracket])?),
         }
+    }
+}
+
+fn define_class(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, String> {
+    // println!("defining class");
+    let name = if let Some(Expression::Ident(_)) = iter.peek(){
+        iter.next().unwrap()
+    }else {
+        return Err(format!("Expected identifier, found {:?}", iter.peek()));
+    };
+
+    iter.next();
+    let body = make_block(iter)?;
+
+    Ok(ExprNode::Class(Box::new(name.clone()), Box::new(body)))
+}
+
+fn new_object(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, String> {
+    let name = if let Some(Expression::Ident(_)) = iter.peek() {
+        iter.next().unwrap()
+    }else {
+        return Err(format!("Expected identifier, found {:?}", iter.peek()));
+    };
+
+    iter.next();
+    match find_params(iter) {
+        Ok(params) => Ok(ExprNode::New(Box::new(name.clone()), params)),
+        Err(e) => Err(e)
     }
 }
