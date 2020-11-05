@@ -25,4 +25,15 @@ If you want to contribute ~~for some reason~~ , run in to some kind of bug, or w
 
 ---
 
+# Getting started
+
+To get started using EmeraldScript, you'll want to do `cargo install --git https://github.com/AnActualEmerald/EmeraldScript.git` to install the binary that will actually run the code (I like to call it the gem because it's fun to name things). Next, I would highly suggest doing `cargo install --git https://github.com/AnActualEmerald/beryl.git` to get a more user friendly CLI and a repl. Beryl also comes with some example scripts that might be a good place to start. Once you get both of the binaries installed you should be good to go, assuming that your `~/.cargo/bin/` directory ~~or whatever it is on windows~~ is in your path variable. Just type `beryl` into your command line to open the repl, or `beryl help` to see the other options.
+
+Because the gem itself is an executable binary, you can also use it to run scripts via a wizzbang line at the top of a text file (think `#!/bin/bash`). On linux at least, it should be as simple as adding `#!/path-to-the-binary` at the top of your script, and making that script an executable file with chmod. I'm sure anyone who happens across this page already knows about that, but I just think it's neat.
+
+One last thing: in the event you want or need to put the gem somewhere else on your system, you can set the GEM_BIN environment variable to point directly at the gem and beryl will be figure it out. This way, if you need a specific gem version or just like to keep all of your binaries in one spot that isn't in PATH for some reason, you can do that. Also, `beryl run` has a `--gem-path` option too, so there's really no excuse. 
+
+
+
+
 Find me on [twitter](https://twitter.com/KevahnGee) or join my [discord](https://discord.gg/bkQJeCH)
