@@ -172,8 +172,6 @@ pub fn read_line<'a>(
 
     
     for exp in iter.take_while(|e| !(delim.contains(e)|| Expression::Lbrace == **e)) {
-        println!("Accum: {:?}", accum);
-        println!("Exp: {:?}", exp);
         match exp {
             // Expression::Lbracket => {
             //     return make_array(iter);
@@ -502,6 +500,7 @@ fn make_node(exp: &Expression) -> ExprNode {
 fn find_params(
     peekable: &mut Peekable<Iter<'_, Expression>>,
 ) -> Result<Vec<ExprNode>, String> {
+    let mut nest = 1;
     let mut params = vec![];
     loop {
         // println!("{:?} is next in params", peekable.peek());
@@ -510,11 +509,17 @@ fn find_params(
         match peekable.peek() {
             Some(Expression::Lparen) => {
                 peekable.next();
+                nest+=1;
                 continue;
             }
             Some(Expression::Rparen) => {
                 peekable.next();
-                break;
+                nest-=1;
+                if nest < 1 {
+                    break;
+                }else {
+                    continue;
+                }
             }
             Some(Expression::Semicolon) => break,
             Some(Expression::Lbrace) => {
