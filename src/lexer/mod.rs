@@ -225,7 +225,7 @@ impl Lexer {
                     result = Some(Expression::Key(self.token.to_string()));
                     self.token.clear();
                 }
-                "true" | "false" => {
+                "true" | "false" | "null" => {
                     result = Some(Expression::Key(self.token.to_string()));
                     self.token.clear();
                 }

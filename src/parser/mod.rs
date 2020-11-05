@@ -103,10 +103,9 @@ fn key_word(
         "return" => Ok(ExprNode::ReturnVal(Box::new(expr(iter, cur)?))),
         "true" => Ok(ExprNode::BoolLiteral(true)),
         "false" => Ok(ExprNode::BoolLiteral(false)),
+        "null" => Ok(ExprNode::Illegal(None)),
         "while" => {
-            let con = expr(iter, cur)?;
-            iter.next(); // have to skip the closing paren
-            iter.next(); // and the opening brace
+            let con = read_line(None, iter, &vec![&Expression::Rbrace])?;
             let body = make_block(iter)?;
             Ok(ExprNode::Loop(
                 Box::new("while".to_string()),
@@ -173,6 +172,8 @@ pub fn read_line<'a>(
 
     
     for exp in iter.take_while(|e| !(delim.contains(e)|| Expression::Lbrace == **e)) {
+        println!("Accum: {:?}", accum);
+        println!("Exp: {:?}", exp);
         match exp {
             // Expression::Lbracket => {
             //     return make_array(iter);
@@ -190,7 +191,7 @@ pub fn read_line<'a>(
                                 ExprNode::Operation(
                                     Box::new(operator.clone()),
                                     Box::new(tmp),
-                                    Box::new(read_line(None, iter, &vec![&Expression::Semicolon])?))
+                                    Box::new(read_line(None, iter, delim)?))
                             }
                             Some(Expression::Equal) => {
                                 //if there is an equal sign after the dot operator, then use the dot operation as the left side of it
@@ -211,7 +212,7 @@ pub fn read_line<'a>(
                 ExprNode::Operation(
                     Box::new(exp.clone()),
                     Box::new(expr(&mut accum.iter().peekable(), None)?),
-                    Box::new(read_line(None, iter, &vec![&Expression::Semicolon])?),
+                    Box::new(read_line(None, iter, delim)?),
                 )
                 });
             }
@@ -230,7 +231,7 @@ pub fn read_line<'a>(
                 return Ok(ExprNode::Operation(
                     Box::new(exp.clone()),
                     Box::new(expr(&mut accum.iter().peekable(), None)?),
-                    Box::new(read_line(None, iter, &vec![])?),
+                    Box::new(read_line(None, iter, delim)?),
                 ))
             }
             _ => accum.push(exp.clone()),
@@ -271,7 +272,7 @@ fn expr(
                     node = ExprNode::Operation(
                         Box::new(t.unwrap().clone()),
                         Box::new(ExprNode::Name(Box::new(name.to_string()))),
-                        Box::new(read_line(/*Some(&vec![cur.unwrap().clone()])*/ None, iter, &vec![&Expression::Semicolon])?),
+                        Box::new(read_line(None, iter, &vec![&Expression::Semicolon])?),
                     )
                 }
             }
@@ -560,11 +561,11 @@ fn make_for_loop(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, 
 }
 
 fn make_if(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, String> {
-    if let Some(Expression::Lparen) = iter.peek() {
+    // if let Some(Expression::Lparen) = iter.peek() {
         // iter.next();
-        let condition = expr(iter, None)?; //get the conditional statement for the if
-        iter.next(); //skip the closing paren
-        iter.next(); //skip the opening brace
+        let condition = read_line(None, iter, &vec![&Expression::Lbrace])?; //get the conditional statement for the if
+        // iter.next(); //skip the closing paren
+        // iter.next(); //skip the opening brace
         let block = make_block(iter)?; //get the body of the if
 
         let mut branch = ExprNode::Illegal(None);
@@ -589,9 +590,9 @@ fn make_if(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, String
             Box::new(block),
             Box::new(branch),
         ))
-    } else {
-        Err(format!("Expected \"(\" found {}", iter.next().unwrap()))
-    }
+    // } else {
+        // Err(format!("Expected \"(\" found {}", iter.next().unwrap()))
+    // }
 }
 
 fn make_array(iter: &mut Peekable<Iter<'_, Expression>>) -> Result<ExprNode, String> {
