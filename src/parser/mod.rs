@@ -4,6 +4,7 @@ mod tests;
 use super::lexer::*;
 use std::iter::Peekable;
 use std::slice::Iter;
+use peeking_take_while::PeekableExt;
 
 //compiler stuff
 
@@ -129,7 +130,6 @@ fn def_func(
     _cur: Option<&Expression>,
 ) -> Result<ExprNode, String> {
     let mut name: Expression = Expression::Ident("broken".to_owned());
-    let mut params = vec![];
     let mut body: ExprNode = ExprNode::Illegal(None);
 
     if let Some(n) = iter.next() {
@@ -139,19 +139,19 @@ fn def_func(
         }
     }
 
-    while let Some(p) = iter.next() {
-        match p {
-            Expression::Lparen => continue,
-            Expression::Rparen => break,
-            Expression::Ident(i) => params.push(ExprNode::Name(Box::new(i.to_string()))),
-            _ => {}
-        }
-    }
+    // while let Some(p) = iter.next() {
+    //     match p {
+    //         Expression::Lparen => continue,
+    //         Expression::Rparen => break,
+    //         Expression::Ident(i) => params.push(ExprNode::Name(Box::new(i.to_string()))),
+    //         _ => {}
+    //     }
+    // }
 
-    if let Some(b) = iter.next() {
-        if let Expression::Lbrace = b {
+    let params = find_params(iter)?;
+    if let Some(Expression::Lbrace) = iter.peek() {
+            iter.next();
             body = make_block(iter)?;
-        }
     }
 
     Ok(ExprNode::Func(Box::new(name), params, Box::new(body)))
@@ -171,11 +171,14 @@ pub fn read_line<'a>(
     };
 
     
-    for exp in iter.take_while(|e| !(delim.contains(e)|| Expression::Lbrace == **e)) {
+    for exp in iter.peeking_take_while(|e| !(delim.contains(e)|| Expression::Lbrace == **e)) {
         match exp {
             // Expression::Lbracket => {
             //     return make_array(iter);
             // }
+            Expression::Key(k) => {
+                return Ok(key_word(iter, None, k)?)
+            }
             Expression::Operator(op) => {
                 return Ok(if op == &'.' {
                     let tmp = ExprNode::Operation(
@@ -234,6 +237,7 @@ pub fn read_line<'a>(
             }
             _ => accum.push(exp.clone()),
         }
+
     }
 
     Ok(expr(&mut accum.iter().peekable(), None)?)
@@ -500,13 +504,18 @@ fn make_node(exp: &Expression) -> ExprNode {
 fn find_params(
     peekable: &mut Peekable<Iter<'_, Expression>>,
 ) -> Result<Vec<ExprNode>, String> {
-    let mut nest = 1;
+    let mut nest = 0;
     let mut params = vec![];
     loop {
         // println!("{:?} is next in params", peekable.peek());
         // println!("{:?} is the accumulated params", params);
+        // println!("also nest: {}", nest);
         // std::io::stdin().read_line(&mut String::new());
         match peekable.peek() {
+            Some(Expression::Comma) => {
+                peekable.next();
+                continue;
+            }
             Some(Expression::Lparen) => {
                 peekable.next();
                 nest+=1;

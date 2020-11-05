@@ -13,6 +13,7 @@ edition = "2018"
 regex = "1"
 console = "0.12.0"
 clap = "2.33.0"
+peeking_take_while = "0.1.2"
 
 [lib]
 name = "gem"
