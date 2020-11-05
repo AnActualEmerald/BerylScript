@@ -331,6 +331,11 @@ impl Lexer {
                 }
             }
             '.' => Some(Expression::Operator(c)),
+            '#' => {
+                ch.next();
+                self.current_state = State::Comment;
+                None
+            } 
             '/' => {
                 if let Some(sym) = ch.peek() {
                     match sym {

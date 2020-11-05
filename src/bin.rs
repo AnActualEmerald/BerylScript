@@ -19,20 +19,15 @@ fn main() {
     let debug = matches.is_present("debug");
 
     if let Some(path) = matches.value_of("PATH") {
-        if path.ends_with(".em") {
-            let data = fs::read_to_string(&path).unwrap_or_else(|e| {
-                panic!("Couldn't read file {}: {}", path, e);
-            });
-            let args = if let Some(tmp) = matches.values_of("ARGS"){
-                tmp.map(|e| format!("\"{}\"", e)).collect::<Vec<String>>().join(",")
-            }else {
-                "".to_string()
-            };
-            gem::run(data, &args, debug);
-            return;
-        } else {
-            println!("Not a valid .em file!");
-            return;
-        }
+        let data = fs::read_to_string(&path).unwrap_or_else(|e| {
+            panic!("Couldn't read file {}: {}", path, e);
+        });
+        let args = if let Some(tmp) = matches.values_of("ARGS"){
+            tmp.map(|e| format!("\"{}\"", e)).collect::<Vec<String>>().join(",")
+        }else {
+            "".to_string()
+        };
+        gem::run(data, &args, debug);
+        return;
     }
 }

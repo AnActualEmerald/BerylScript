@@ -174,9 +174,9 @@ pub fn read_line<'a>(
     
     for exp in iter.take_while(|e| !(delim.contains(e)|| Expression::Lbrace == **e)) {
         match exp {
-            Expression::Lbracket => {
-                return make_array(iter);
-            }
+            // Expression::Lbracket => {
+            //     return make_array(iter);
+            // }
             Expression::Operator(op) => {
                 return Ok(if op == &'.' {
                     let tmp = ExprNode::Operation(
@@ -271,7 +271,7 @@ fn expr(
                     node = ExprNode::Operation(
                         Box::new(t.unwrap().clone()),
                         Box::new(ExprNode::Name(Box::new(name.to_string()))),
-                        Box::new(read_line(None, iter, &vec![&Expression::Semicolon])?),
+                        Box::new(read_line(/*Some(&vec![cur.unwrap().clone()])*/ None, iter, &vec![&Expression::Semicolon])?),
                     )
                 }
             }
