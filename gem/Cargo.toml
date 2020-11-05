@@ -1,6 +1,6 @@
 [package]
 name = "gem"
-version = "0.0.4"
+version = "0.0.5"
 description = "A simple interpreted language written entirely in rust"
 keywords = ["parser", "lexer", "interpeter", "language"]
 authors = ["AnActualEmerald <kevinliger13@gmail.com>"]
@@ -12,4 +12,12 @@ edition = "2018"
 [dependencies]
 regex = "1"
 console = "0.12.0"
+clap = "2.33.0"
 
+[lib]
+name = "gem"
+path = "src/lib.rs"
+
+[[bin]]
+name = "gem-bin"
+path = "src/bin.rs"

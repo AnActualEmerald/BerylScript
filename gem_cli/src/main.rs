@@ -12,7 +12,7 @@ extern crate clap;
 ///Starts the REPL by default, also has `run` and `examples` subcommands
 fn main() {
     let matches = clap_app!(app =>
-    (name: "Gem CLI")
+    (name: "Beryl")
     (version: env!("CARGO_PKG_VERSION"))
     (author: "Emerald <@Emerald#6666>")
     (about: "Runs emerald script programs and other helpful stuff")

@@ -1,5 +1,5 @@
 [package]
-name = "gem_cli"
+name = "beryl"
 version = "0.0.3"
 authors = ["AnActualEmerald <kevinliger13@gmail.com>"]
 edition = "2018"
