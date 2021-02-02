@@ -500,7 +500,7 @@ fn make_node(exp: &Expression) -> ExprNode {
 fn find_params(
     peekable: &mut Peekable<Iter<'_, Expression>>,
 ) -> Result<Vec<ExprNode>, String> {
-    let mut nest = 1;
+    let mut nest = 0;
     let mut params = vec![];
     loop {
         // println!("{:?} is next in params", peekable.peek());

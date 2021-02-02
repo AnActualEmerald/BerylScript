@@ -23,7 +23,7 @@ fn main() {
             panic!("Couldn't read file {}: {}", path, e);
         });
         let args = if let Some(tmp) = matches.values_of("ARGS"){
-            tmp.map(|e| format!("\"{}\"", e)).collect::<Vec<String>>().join(",")
+            tmp.map(|e| format!("{}", e)).collect::<Vec<String>>().join(",")
         }else {
             "".to_string()
         };

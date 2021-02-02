@@ -3,7 +3,7 @@ fn main(args) {
 	result = 0;
 	while input != "n" {
     println("Got number: " + input);
-	  if (number(input) == null) {
+	  if number(input) == null {
 			println("That wasn't a number");
 		}else {
 			result = result + number(input);	
