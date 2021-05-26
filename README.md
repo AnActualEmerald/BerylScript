@@ -1,4 +1,4 @@
-# EmeraldScript  ![Build](https://github.com/AnActualEmerald/EmeraldScript/workflows/Build/badge.svg)
+# EmeraldScript  ![Build](https://github.com/AnActualEmerald/EmeraldScript/workflows/Build/badge.svg) [![Tests](https://github.com/AnActualEmerald/EmeraldScript/actions/workflows/Test.yml/badge.svg)](https://github.com/AnActualEmerald/EmeraldScript/actions/workflows/Test.yml)
 
 ### What is EmeraldScript?
 
