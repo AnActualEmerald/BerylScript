@@ -1,0 +1,82 @@
+use std::str::FromStr;
+use crate::parser::Node;
+
+grammar;
+
+pub Node: Box<Node> = {
+    Block => Box::new(Node::Block(<>)),
+    <s:Statement> => s,
+}
+
+Expression: Box<Node> = {
+    <Num> => Box::new(Node::NumLiteral(<>)),
+    <EmStr> => Box::new(Node::StrLiteral(<>)),
+    <EmBool> => Box::new(Node::BoolLiteral(<>)),
+    Name,
+    // Op,
+}
+
+Statement: Box<Node> = {
+    <Name> <Tuple> ";" => Box::new(Node::Call(<>)),
+    FN <Name> <Tuple> <Block> => Box::new(Node::Func(<>)),
+    // <Name> <Equals> <Expression> ";" => Box::new(Node::Operation(<>)),
+}
+
+Block: Vec<Box<Node>> = "{" <Node+> "}" => Vec::from(<>);
+Tuple: Vec<Box<Node>> = <c:("(" <Comma<Expression>> ")")> => c;
+
+//--primitives--//
+Num: f32 = <n:r"[0-9]+"> => f32::from_str(n).unwrap();
+EmStr: String =  <s:r#"".+""#>  => format!("{}", s);
+EmBool: bool = {
+    <t:r"true"> => true,
+    <f:r"false"> => false
+}
+
+Op: Box<Node> = {
+    <Op> <OpCode> <OpFact> => Box::new(Node::Operation(<>)),
+    OpFact
+}
+
+OpFact: Box<Node> ={
+    <OpFact> <OpFactCode> <Expression> => Box::new(Node::Operation(<>)),
+    Expression
+}
+
+Equals: Box<Node> = <e:"="> => Box::new(Node::Operator('='));
+
+OpCode: Box<Node> = {
+    "+" => Box::new(Node::Operator('+')),
+    "-" => Box::new(Node::Operator('-')),
+}
+
+OpFactCode: Box<Node> = {
+    "*" => Box::new(Node::Operator('*')),
+    "/" => Box::new(Node::Operator('/'))
+}
+
+Name: Box<Node> = <n:r"[A-Za-z]\w*"> => Box::new(Node::Name(format!("{}", n)));
+
+Comma<T>: Vec<T> = {
+    <mut v:(<T> ",")*> <e:T?> => match e {
+        None => v,
+        Some(e) => {
+            v.push(e);
+            v
+        }
+    } 
+};
+
+//--keywords--//
+match{
+    "true",
+    "false",
+    "fn" => FN,
+    "new" => NEW,
+    r"\s*" => { }, // The default whitespace skipping is disabled an `ignore pattern` is specified
+    r"//[^\n\r]*[\n\r]*" => { }, // Skip `// comments`
+    r"/\*([^\*]*\*+[^\*/])*([^\*]*\*+|[^\*])*\*/" => { },  // Skip `/* comments */`
+}else {
+    _
+}
+
