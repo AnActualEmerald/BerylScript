@@ -5,7 +5,7 @@ lalrpop_mod!(grammar);
 ///Enum with variants for each type of statement or literal in the lang
 #[derive(PartialEq, Debug, Clone, PartialOrd)]
 pub enum Node {
-    Operation(Box<Node>, Box<Node>, Box<Node>), //Left side, Operator, Right side
+    Operation(Box<Node>, Operator, Box<Node>), //Left side, Operator, Right side
     StrLiteral(String),
     NumLiteral(f32),
     BoolLiteral(bool),
@@ -26,6 +26,15 @@ pub enum Node {
     Index(Box<Node>, Box<Node>), //array identifier, inedex
     Operator(char),
     EOF,
+}
+
+#[derive(PartialEq, Debug, Clone, PartialOrd)]
+pub enum Operator {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Equals,
 }
 
 impl Node {

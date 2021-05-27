@@ -1,5 +1,5 @@
 use std::str::FromStr;
-use crate::parser::Node;
+use crate::parser::{Node, Operator};
 
 grammar;
 
@@ -8,22 +8,36 @@ pub Node: Box<Node> = {
     <s:Statement> => s,
 }
 
-Expression: Box<Node> = {
+Term: Box<Node> = {
     <Num> => Box::new(Node::NumLiteral(<>)),
     <EmStr> => Box::new(Node::StrLiteral(<>)),
     <EmBool> => Box::new(Node::BoolLiteral(<>)),
     Name,
-    // Op,
+    "(" <Expr> ")",
 }
 
 Statement: Box<Node> = {
     <Name> <Tuple> ";" => Box::new(Node::Call(<>)),
     FN <Name> <Tuple> <Block> => Box::new(Node::Func(<>)),
-    // <Name> <Equals> <Expression> ";" => Box::new(Node::Operation(<>)),
+    <n:Name> "=" <e:Expr> ";" => Box::new(Node::Operation(n, Operator::Equals, e)),
 }
 
+Expr: Box<Node> = {
+    <f:Expr> "+" <e:Factor> => Box::new(Node::Operation(f, Operator::Add, e)),
+    <f:Expr> "-" <e:Factor> => Box::new(Node::Operation(f, Operator::Sub, e)),
+    Factor
+}
+
+Factor: Box<Node> = {
+    <f:Factor> "*" <e:Term> => Box::new(Node::Operation(f, Operator::Mul, e)),
+    <f:Factor> "/" <e:Term> => Box::new(Node::Operation(f, Operator::Div, e)),
+    Term
+
+}
+
+
 Block: Vec<Box<Node>> = "{" <Node+> "}" => Vec::from(<>);
-Tuple: Vec<Box<Node>> = <c:("(" <Comma<Expression>> ")")> => c;
+Tuple: Vec<Box<Node>> = <c:("(" <Comma<Expr>> ")")> => c;
 
 //--primitives--//
 Num: f32 = <n:r"[0-9]+"> => f32::from_str(n).unwrap();
@@ -31,28 +45,6 @@ EmStr: String =  <s:r#"".+""#>  => format!("{}", s);
 EmBool: bool = {
     <t:r"true"> => true,
     <f:r"false"> => false
-}
-
-Op: Box<Node> = {
-    <Op> <OpCode> <OpFact> => Box::new(Node::Operation(<>)),
-    OpFact
-}
-
-OpFact: Box<Node> ={
-    <OpFact> <OpFactCode> <Expression> => Box::new(Node::Operation(<>)),
-    Expression
-}
-
-Equals: Box<Node> = <e:"="> => Box::new(Node::Operator('='));
-
-OpCode: Box<Node> = {
-    "+" => Box::new(Node::Operator('+')),
-    "-" => Box::new(Node::Operator('-')),
-}
-
-OpFactCode: Box<Node> = {
-    "*" => Box::new(Node::Operator('*')),
-    "/" => Box::new(Node::Operator('/'))
 }
 
 Name: Box<Node> = <n:r"[A-Za-z]\w*"> => Box::new(Node::Name(format!("{}", n)));
