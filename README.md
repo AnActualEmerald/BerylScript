@@ -1,16 +1,16 @@
-# EmeraldScript  ![Build](https://github.com/AnActualEmerald/EmeraldScript/workflows/Build/badge.svg) [![Tests](https://github.com/AnActualEmerald/EmeraldScript/actions/workflows/Test.yml/badge.svg)](https://github.com/AnActualEmerald/EmeraldScript/actions/workflows/Test.yml)
+# BerylScript  ![Build](https://github.com/AnActualEmerald/BerylScript/workflows/Build/badge.svg) [![Tests](https://github.com/AnActualEmerald/BerylScript/actions/workflows/Test.yml/badge.svg)](https://github.com/AnActualEmerald/BerylScript/actions/workflows/Test.yml)
 
-### What is EmeraldScript?
+### What is BerylScript?
 
-EmeraldScript is an interpreted programming language. The interpreter itself is written in rust, and has kind of been my intro into some more advanced ideas in rust. This project is mostly just a toy, and currently isn't really intended for public consumption.
+BerylScript is an interpreted programming language. The interpreter itself is written in rust, and has kind of been my intro into some more advanced ideas in rust. This project is mostly just a toy, and currently isn't really intended for public consumption.
 
-### How is EmeraldScript?
+### How is BerylScript?
 
-It's doing great! Currently all of the basic features you would expect are supported and stable, including for and while loops, if-elif-else statements, functions, variables, and even objects in the style of Python. You can check out the [issues](https://github.com/AnActualEmerald/EmeraldScript/issues) to see what I'm planning to work on next, or to request something.
+It's doing great! Currently all of the basic features you would expect are supported and stable, including for and while loops, if-elif-else statements, functions, variables, and even objects in the style of Python. You can check out the [issues](https://github.com/AnActualEmerald/BerylScript/issues) to see what I'm planning to work on next, or to request something.
 
 ### What does it look like?
 
-Right now, EmeraldScript's syntax is a combination of Rust, JS, and Python. If you run the `examples` command in the CLI, it will generate a few example files to help get you started (You can also run the CLI itself to open a REPL to play around in).
+Right now, BerlScript's syntax is a combination of Rust, JS, and Python. If you run the `examples` command in the CLI, it will generate a few example files to help get you started (You can also run the CLI itself to open a REPL to play around in).
 Here's a look at one:
 
 ```
@@ -27,7 +27,7 @@ If you want to contribute ~~for some reason~~ , run in to some kind of bug, or w
 
 # Getting started
 
-To get started using EmeraldScript, you'll want to do `cargo install --git https://github.com/AnActualEmerald/EmeraldScript.git` to install the binary that will actually run the code (I like to call it the gem because it's fun to name things). Next, I would highly suggest doing `cargo install --git https://github.com/AnActualEmerald/beryl.git` to get a more user friendly CLI and a repl. Beryl also comes with some example scripts that might be a good place to start. Once you get both of the binaries installed you should be good to go, assuming that your `~/.cargo/bin/` directory ~~or whatever it is on windows~~ is in your path variable. Just type `beryl` into your command line to open the repl, or `beryl help` to see the other options.
+To get started using BerylScript, you'll want to do `cargo install --git https://github.com/AnActualEmerald/BerylScript.git` to install the binary that will actually run the code (I like to call it the gem because it's fun to name things). Next, I would highly suggest doing `cargo install --git https://github.com/AnActualEmerald/beryl.git` to get a more user friendly CLI and a repl. Beryl also comes with some example scripts that might be a good place to start. Once you get both of the binaries installed you should be good to go, assuming that your `~/.cargo/bin/` directory ~~or whatever it is on windows~~ is in your path variable. Just type `beryl` into your command line to open the repl, or `beryl help` to see the other options.
 
 Because the gem itself is an executable binary, you can also use it to run scripts via a wizzbang line at the top of a text file (think `#!/bin/bash`). On linux at least, it should be as simple as adding `#!/path-to-the-binary` at the top of your script, and making that script an executable file with chmod. I'm sure anyone who happens across this page already knows about that, but I just think it's neat.
 
