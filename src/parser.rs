@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 lalrpop_mod!(grammar);
 
 //making the nodes hold the actual values instead of the Expressions might be worth it to make
@@ -25,7 +27,20 @@ pub enum Node {
     Array(Vec<Node>),
     Index(Box<Node>, Box<Node>), //array identifier, inedex
     Operator(char),
+    None,
     EOF,
+}
+
+impl Display for Node {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::StrLiteral(s) => write!(f, "{}", s),
+            Self::NumLiteral(n) => write!(f, "{}", n),
+            Self::BoolLiteral(b) => write!(f, "{}", b),
+            Self::Name(n) => write!(f, "{}", n),
+            _ => write!(f, "{:?}", self),
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone, PartialOrd)]
@@ -35,6 +50,13 @@ pub enum Operator {
     Mul,
     Div,
     Equals,
+    Dot,
+    EqualTo,
+    NotEqualTo,
+    Greater,
+    Less,
+    GreaterOrEq,
+    LessOrEq,
 }
 
 impl Node {

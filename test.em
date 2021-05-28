@@ -1,4 +1,4 @@
-fn main() {
+fn main(args) {
 	println("Hello world");
 }
 
