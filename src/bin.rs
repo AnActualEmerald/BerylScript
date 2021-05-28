@@ -5,10 +5,10 @@ extern crate clap;
 
 fn main() {
     let matches = clap_app!(app =>
-    (name: "Gem")
+    (name: "BerylScript")
     (version:env!("CARGO_PKG_VERSION"))
     (author: "Emerald <@Emerald#6666>")
-    (about: "Parses and runs emerald script")
+    (about: "Parses and runs BerylScript")
     (@arg debug: -d --debug "Display debugging information")
     (@arg PATH: +required "Path of the file to run")
     (@arg ARGS: ... +use_delimiter "Arguments to pass to the script")
@@ -26,7 +26,7 @@ fn main() {
         } else {
             vec![]
         };
-        gem::run(data, &args, debug);
+        beryl-lib::run(data, &args, debug);
         return;
     }
 }
