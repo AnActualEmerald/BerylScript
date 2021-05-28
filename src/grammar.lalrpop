@@ -41,7 +41,7 @@ Tuple: Vec<Box<Node>> = <c:("(" <Comma<Expr>> ")")> => c;
 
 //--primitives--//
 Num: f32 = <n:r"[0-9]+"> => f32::from_str(n).unwrap();
-EmStr: String =  <s:r#"".+""#>  => format!("{}", s);
+EmStr: String =  <s:(r#"""# <r#"[.^"]+"#> r#"""#)>  => format!("{}", s);
 EmBool: bool = {
     <t:r"true"> => true,
     <f:r"false"> => false
@@ -61,6 +61,7 @@ Comma<T>: Vec<T> = {
 
 //--keywords--//
 match{
+    r#"""#,
     "true",
     "false",
     "fn" => FN,

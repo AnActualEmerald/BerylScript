@@ -6,12 +6,12 @@ extern crate lalrpop_util;
 mod interpreter;
 mod parser;
 
-lalrpop_mod!(arguments);
+use parser::Node;
 
 ///Runs the lexer, parser, and interpreter on the provided string
-pub fn run(data: String, args: &str, debug: bool) {
+pub fn run(data: String, args: &Vec<String>, debug: bool) {
     let ast = parser::parse(&data);
-    let p_args = arguments::ArgsParser::new().parse(&args).unwrap();
+    let p_args: Node = Node::Array(args.iter().map(|a| Node::StrLiteral(a.clone())).collect());
     interpreter::run(*ast, p_args);
 }
 
