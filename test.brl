@@ -1,3 +1,29 @@
 fn main(args) {	
-	println("Hello \"world\" " + "Good bye world");
+	name = readln("What is your name? ");
+	age = number(readln("How old are you? "));
+	user = new Person(name, age);
+	user.alive = true;
+	user.greet();
+	if (user.age >= 50 XX user.alive){
+		println("Man, you're old");
+	} else if (user.age < 18){
+		println("Yeah you're a little too young");
+	} else {
+		println("Suh dude");
+	}
+}
+
+class Person {
+	fn ~init(self, name, age) {
+		self.name = name;
+		self.age = age;
+	}
+	
+	fn ~display(self) {
+		return "Name: " + self.name + " Age: " + self.age;
+	}
+
+	fn greet(self) {
+		println("My name is " + self.name + " and I am " + self.age + " years old");
+	}
 }

@@ -101,6 +101,16 @@ impl types::Indexable<Value> for Value {
     }
 }
 
+impl Value {
+    fn booly(&self) -> bool {
+        match self {
+            Self::Null => false,
+            Self::EmBool(b) => *b,
+            _ => true,
+        }
+    }
+}
+
 ///Stores variables in a hashmap for a given function block. Only created on function call, with the exception of the global frame
 pub struct StackFrame {
     stack: HashMap<String, Value>,
@@ -207,6 +217,7 @@ impl Runtime {
             Node::Index(ident, index) => res = self.index_array(ident, index, frame)?,
             Node::New(name, args) => res = self.do_init(name, args, frame)?,
             Node::Class(name, body) => res = self.define_class(&**name, &**body, frame)?,
+            Node::Not(n) => res = Value::EmBool(!self.walk_tree(&**n, frame)?.booly()),
             _ => res = Value::Null,
         }
         //Reset the returning flag, since we're returning whatever value we got anyways
@@ -351,7 +362,7 @@ impl Runtime {
                             if let Some(v) = obj.get_prop(n) {
                                 Ok(v.clone())
                             } else {
-                                Err(format!("{} has no property {}", obj, n))
+                                Ok(Value::Null)
                             }
                         }
                         Node::Call(n, a) => self.do_method(&obj, &**n, a, frame),
@@ -406,6 +417,12 @@ impl Runtime {
                     Operator::Less => Ok(Value::EmBool(l_p < r_p)),
                     Operator::GreaterOrEq => Ok(Value::EmBool(l_p >= r_p)),
                     Operator::LessOrEq => Ok(Value::EmBool(l_p <= r_p)),
+                    Operator::AND => Ok(Value::EmBool(l_p.booly() && r_p.booly())),
+                    Operator::OR => Ok(Value::EmBool(l_p.booly() || r_p.booly())),
+                    Operator::XOR => Ok(Value::EmBool(
+                        (l_p.booly() || r_p.booly()) && !(l_p.booly() && r_p.booly()),
+                    )),
+
                     _ => Err(format!("Invalid Operator: {:?}", opr)),
                 }
             }
@@ -444,7 +461,6 @@ impl Runtime {
         frame: &mut StackFrame,
     ) -> Result<Value, String> {
         match name {
-            // Node::Key(_) => self.keyword(name, &args[0], frame),
             Node::Name(n) => {
                 //check if there is a built-in function to use
                 if self.functions.contains_key(n) {

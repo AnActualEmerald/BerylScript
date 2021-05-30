@@ -14,11 +14,12 @@ Term: Box<Node> = {
     <List> => Box::new(Node::Array(<>)),
     <Name> <Tuple> => Box::new(Node::Call(<>)),
     <Name> <Index> => Box::new(Node::Index(<>)),
+    <n:Name> "." <e:Term> => Box::new(Node::Operation(n, Operator::Dot, e)),
     "new" <Name> <Tuple> => Box::new(Node::New(<>)),
     EmBool,
     Name,
+    "null" => Box::new(Node::None),
     "(" <Expr> ")",
-    "!" <Expr> => Box::new(Node::Not(<>)),
 }
 
 Statement: Box<Node> = {
@@ -49,7 +50,6 @@ Expr: Box<Node> = {
 Factor: Box<Node> = {
     <f:Factor> "*" <e:Term> => Box::new(Node::Operation(f, Operator::Mul, e)),
     <f:Factor> "/" <e:Term> => Box::new(Node::Operation(f, Operator::Div, e)),
-    <n:Name> "." <e:Term> => Box::new(Node::Operation(n, Operator::Dot, e)),
     Term
 
 }
@@ -88,6 +88,10 @@ BoolOp: Box<Node> = {
     <f:Expr> "<" <e:Factor> => Box::new(Node::Operation(f, Operator::Less, e)),
     <f:Expr> ">=" <e:Factor> => Box::new(Node::Operation(f, Operator::GreaterOrEq, e)),
     <f:Expr> "<=" <e:Factor> => Box::new(Node::Operation(f, Operator::LessOrEq, e)),
+    <f:Expr> "&&" <e:Factor> => Box::new(Node::Operation(f, Operator::AND, e)),
+    <f:Expr> "||" <e:Factor> => Box::new(Node::Operation(f, Operator::OR, e)),
+    <f:Expr> "XX" <e:Factor> => Box::new(Node::Operation(f, Operator::XOR, e)),
+    "!" <Term> => Box::new(Node::Not(<>)),
 }
 
 // //--Special rules for making class definitions--//
@@ -133,6 +137,7 @@ match{
     "for",
     "if",
     "else",
+    "null",
     r"\s*" => { }, // The default whitespace skipping is disabled an `ignore pattern` is specified
     r"//[^\n\r]*[\n\r]*" => { }, // Skip `// comments`
     r"/\*([^\*]*\*+[^\*/])*([^\*]*\*+|[^\*])*\*/" => { },  // Skip `/* comments */`

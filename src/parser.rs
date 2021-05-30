@@ -26,6 +26,7 @@ pub enum Node {
     ElseStatement(Box<Node>),                     //body
     Array(Vec<Box<Node>>),
     Index(Box<Node>, Box<Node>), //array identifier, inedex
+    Not(Box<Node>),
     None,
     EOF,
 }
@@ -56,6 +57,9 @@ pub enum Operator {
     Less,
     GreaterOrEq,
     LessOrEq,
+    AND,
+    OR,
+    XOR,
 }
 
 impl Node {
