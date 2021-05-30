@@ -563,7 +563,7 @@ impl Runtime {
     fn do_init(
         &mut self,
         name: &Node,
-        init_args: &Vec<Node>,
+        init_args: &Vec<Box<Node>>,
         frame: &mut StackFrame,
     ) -> Result<Value, String> {
         if let Node::Name(n) = name {
@@ -582,7 +582,7 @@ impl Runtime {
                     Err(format!(
                         "Contrsuctor for {} takes {} arguments, found {}",
                         class.get_prop("~name").unwrap(),
-                        params.len(),
+                        params.len() - 1,
                         init_args.len()
                     ))
                 } else {
@@ -590,7 +590,7 @@ impl Runtime {
                     func_frame.set_var(String::from("self"), Value::Object(class.clone()));
                     for (i, e) in init_args.iter().enumerate() {
                         if let Value::Name(arg) = &params[i + 1] {
-                            let val = self.walk_tree(&e, frame)?;
+                            let val = self.walk_tree(&**e, frame)?;
                             match val {
                                 Value::Name(n) => {
                                     let tmp = frame.get_var(&n).clone();
@@ -615,10 +615,14 @@ impl Runtime {
     }
 
     ///Defines an array and saves it to the current stackframe
-    fn create_array(&mut self, raw: &Vec<Node>, frame: &mut StackFrame) -> Result<Value, String> {
+    fn create_array(
+        &mut self,
+        raw: &Vec<Box<Node>>,
+        frame: &mut StackFrame,
+    ) -> Result<Value, String> {
         let mut tmp = vec![];
         for val in raw.iter() {
-            tmp.push(Box::new(self.walk_tree(val, frame)?));
+            tmp.push(Box::new(self.walk_tree(&**val, frame)?));
         }
 
         Ok(Value::EmArray(tmp))

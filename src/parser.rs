@@ -18,16 +18,15 @@ pub enum Node {
     Block(Vec<Box<Node>>),
     Func(Box<Node>, Vec<Box<Node>>, Vec<Box<Node>>), //Name, params, function body
     Class(Box<Node>, Box<Node>),                     //name, body
-    New(Box<Node>, Vec<Node>),                       //name params
+    New(Box<Node>, Vec<Box<Node>>),                  //name params
     Loop(Box<String>, Box<Node>, Box<Node>),         //loop keyword, condition, block
     ForLoopDec(Box<Node>, Box<Node>, Box<Node>),     //declaration, condition, incrementation
     Statement(Box<Node>),
     ReturnVal(Box<Node>),
     IfStatement(Box<Node>, Box<Node>, Box<Node>), //condition, body, branch
     ElseStatement(Box<Node>),                     //body
-    Array(Vec<Node>),
+    Array(Vec<Box<Node>>),
     Index(Box<Node>, Box<Node>), //array identifier, inedex
-    Operator(char),
     None,
     EOF,
 }
@@ -77,7 +76,7 @@ pub fn parse<'input>(text: &'input str) -> Option<Box<Node>> {
     //make all escaped quotes work with the lalrpop grammar
     let re = Regex::new(r#"\\""#).unwrap();
     let fixed_input = re.replace_all(text, "esc_QUOTE");
-    match grammar::NodeParser::new().parse(&fixed_input) {
+    match grammar::NodeParser::new().parse(&format!("{{{}}}", fixed_input)) {
         Ok(n) => Some(n),
         Err(e) => {
             eprintln!("{}", e);

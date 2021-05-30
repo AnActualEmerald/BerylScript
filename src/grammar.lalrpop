@@ -12,21 +12,25 @@ Term: Box<Node> = {
     <Num> => Box::new(Node::NumLiteral(<>)),
     <EmStr> => Box::new(Node::StrLiteral(<>)),
     <EmBool> => Box::new(Node::BoolLiteral(<>)),
+    <List> => Box::new(Node::Array(<>)),
     <Name> <Tuple> => Box::new(Node::Call(<>)),
+    <Name> <Index> => Box::new(Node::Index(<>)),
+    "new" <Name> <Tuple> => Box::new(Node::New(<>)),
     Name,
     "(" <Expr> ")",
 }
 
 Statement: Box<Node> = {
-    FN <Name> <Tuple> <Block> => Box::new(Node::Func(<>)),
+    "fn" <Name> <Tuple> <Block> => Box::new(Node::Func(<>)),
+    "class" <n:Name> <b:Block> => Box::new(Node::Class(n, Box::new(Node::Block(b)))),
+    "return" <Expr> ";" => Box::new(Node::ReturnVal(<>)),
     <Expr> ";",
 }
 
 Expr: Box<Node> = {
     <f:Expr> "+" <e:Factor> => Box::new(Node::Operation(f, Operator::Add, e)),
     <f:Expr> "-" <e:Factor> => Box::new(Node::Operation(f, Operator::Sub, e)),
-    <n:Name> "=" <e:Factor> => Box::new(Node::Operation(n, Operator::Equals, e)),
-    <n:Name> "." <e:Factor> => Box::new(Node::Operation(n, Operator::Dot, e)),
+    <n:Assignable> "=" <e:Factor> => Box::new(Node::Operation(n, Operator::Equals, e)),
     <f:Expr> "==" <e:Factor> => Box::new(Node::Operation(f, Operator::EqualTo, e)),
     <f:Expr> "!=" <e:Factor> => Box::new(Node::Operation(f, Operator::NotEqualTo, e)),
     <f:Expr> ">" <e:Factor> => Box::new(Node::Operation(f, Operator::Greater, e)),
@@ -39,13 +43,26 @@ Expr: Box<Node> = {
 Factor: Box<Node> = {
     <f:Factor> "*" <e:Term> => Box::new(Node::Operation(f, Operator::Mul, e)),
     <f:Factor> "/" <e:Term> => Box::new(Node::Operation(f, Operator::Div, e)),
+    <n:Name> "." <e:Term> => Box::new(Node::Operation(n, Operator::Dot, e)),
     Term
 
 }
 
+Assignable: Box<Node> = {
+    <n:Name> "." <e:Term> => Box::new(Node::Operation(n, Operator::Dot, e)),
+    Name,
+    <Name> <Index> => Box::new(Node::Index(<>)),
+}
 
-Block: Vec<Box<Node>> = "{" <Node+> "}" => Vec::from(<>);
+// //--Special rules for making class definitions--//
+// Method: Box<Node> = <Name> <Tuple> <Block> =>  Box::new(Node::Func(<>));
+// ClassBody: Box<Node> = "{" <Method+> "}" => Box::new(Node::Block(<>));
+
+//--Different ways to group Nodes--//
+Block: Vec<Box<Node>> = "{" <Node*> "}" => Vec::from(<>);
 Tuple: Vec<Box<Node>> = <c:("(" <Comma<Expr>> ")")> => c;
+Index: Box<Node> = "[" <Expr> "]" => <>;
+List: Vec<Box<Node>> = "[" <Comma<Expr>> "]" => <>;
 
 //--primitives--//
 Num: f32 = <n:r"[0-9]+"> => f32::from_str(n).unwrap();
@@ -56,7 +73,7 @@ EmBool: bool = {
     <f:r"false"> => false
 }
 
-Name: Box<Node> = <n:r"[[:alpha:]]\w*"> => Box::new(Node::Name(format!("{}", n)));
+Name: Box<Node> = <n:r"[A-Za-z~][A-Za-z0-9]+"> => Box::new(Node::Name(format!("{}", n)));
 
 Comma<T>: Vec<T> = {
     <mut v:(<T> ",")*> <e:T?> => match e {
@@ -72,8 +89,10 @@ Comma<T>: Vec<T> = {
 match{
     "true",
     "false",
-    "fn" => FN,
-    "new" => NEW,
+    "class",
+    "fn",
+    "new",
+    "return",
     r"\s*" => { }, // The default whitespace skipping is disabled an `ignore pattern` is specified
     r"//[^\n\r]*[\n\r]*" => { }, // Skip `// comments`
     r"/\*([^\*]*\*+[^\*/])*([^\*]*\*+|[^\*])*\*/" => { },  // Skip `/* comments */`

@@ -13,7 +13,7 @@ pub fn run(data: String, args: &Vec<&str>, debug: bool) {
     if let Some(ast) = parser::parse(&data) {
         let p_args: Node = Node::Array(
             args.iter()
-                .map(|a| Node::StrLiteral(a.to_string()))
+                .map(|a| Box::new(Node::StrLiteral(a.to_string())))
                 .collect(),
         );
         if debug {
