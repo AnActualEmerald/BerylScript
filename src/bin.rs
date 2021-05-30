@@ -22,11 +22,11 @@ fn main() {
             panic!("Couldn't read file {}: {}", path, e);
         });
         let args = if let Some(tmp) = matches.values_of("ARGS") {
-            tmp.map(|e| format!("\"{}\"", e)).collect::<Vec<String>>()
+            tmp.collect::<Vec<&str>>()
         } else {
             vec![]
         };
-        beryl-lib::run(data, &args, debug);
+        beryl_lib::run(data, &args, debug);
         return;
     }
 }

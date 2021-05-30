@@ -19,7 +19,7 @@ clap = "2.33.0"
 lalrpop-util = "0.19.5"
 
 [lib]
-name = "beryl-lib"
+name = "beryl_lib"
 path = "src/lib.rs"
 
 [[bin]]

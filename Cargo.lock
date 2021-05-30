@@ -3,6 +3,17 @@
 version = 3
 
 [[package]]
+name = "BerylScript"
+version = "0.0.6"
+dependencies = [
+ "clap",
+ "console",
+ "lalrpop",
+ "lalrpop-util",
+ "regex",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -206,17 +217,6 @@ name = "fixedbitset"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37ab347416e802de484e4d03c7316c48f1ecb56574dfd4a46a80f173ce1de04d"
-
-[[package]]
-name = "gem"
-version = "0.0.6"
-dependencies = [
- "clap",
- "console",
- "lalrpop",
- "lalrpop-util",
- "regex",
-]
 
 [[package]]
 name = "getrandom"

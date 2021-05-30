@@ -12,19 +12,20 @@ Term: Box<Node> = {
     <Num> => Box::new(Node::NumLiteral(<>)),
     <EmStr> => Box::new(Node::StrLiteral(<>)),
     <EmBool> => Box::new(Node::BoolLiteral(<>)),
+    <Name> <Tuple> => Box::new(Node::Call(<>)),
     Name,
     "(" <Expr> ")",
 }
 
 Statement: Box<Node> = {
-    <Name> <Tuple> ";" => Box::new(Node::Call(<>)),
     FN <Name> <Tuple> <Block> => Box::new(Node::Func(<>)),
-    <n:Name> "=" <e:Expr> ";" => Box::new(Node::Operation(n, Operator::Equals, e)),
+    <Expr> ";",
 }
 
 Expr: Box<Node> = {
     <f:Expr> "+" <e:Factor> => Box::new(Node::Operation(f, Operator::Add, e)),
     <f:Expr> "-" <e:Factor> => Box::new(Node::Operation(f, Operator::Sub, e)),
+    <n:Name> "=" <e:Factor>  => Box::new(Node::Operation(n, Operator::Equals, e)),
     Factor
 }
 
@@ -41,13 +42,14 @@ Tuple: Vec<Box<Node>> = <c:("(" <Comma<Expr>> ")")> => c;
 
 //--primitives--//
 Num: f32 = <n:r"[0-9]+"> => f32::from_str(n).unwrap();
-EmStr: String =  <s:(r#"""# <r#"[.^"]+"#> r#"""#)>  => format!("{}", s);
+// I cannot for the life of me figure out how to make it match the quotes exclusively
+EmStr: String = <s:r#""\s*[[:ascii:]]\s*""#> => format!("{}", s);//strip_prefix('"').unwrap().strip_suffix('"').unwrap());
 EmBool: bool = {
     <t:r"true"> => true,
     <f:r"false"> => false
 }
 
-Name: Box<Node> = <n:r"[A-Za-z]\w*"> => Box::new(Node::Name(format!("{}", n)));
+Name: Box<Node> = <n:r"[A-Za-z_~]\w*"> => Box::new(Node::Name(format!("{}", n)));
 
 Comma<T>: Vec<T> = {
     <mut v:(<T> ",")*> <e:T?> => match e {
@@ -61,7 +63,6 @@ Comma<T>: Vec<T> = {
 
 //--keywords--//
 match{
-    r#"""#,
     "true",
     "false",
     "fn" => FN,

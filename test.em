@@ -1,5 +1,6 @@
 fn main(args) {
-	println("Hello world");
+	bruh = readln("Enter your name: ") //+ readln("Enter my age: ");
+
 }
 
 

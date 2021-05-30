@@ -72,6 +72,12 @@ impl Node {
     }
 }
 
-pub fn parse<'input>(text: &'input str) -> Box<Node> {
-    grammar::NodeParser::new().parse(text).unwrap()
+pub fn parse<'input>(text: &'input str) -> Option<Box<Node>> {
+    match grammar::NodeParser::new().parse(text) {
+        Ok(n) => Some(n),
+        Err(e) => {
+            eprintln!("{}", e);
+            None
+        }
+    }
 }
