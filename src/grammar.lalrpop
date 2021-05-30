@@ -25,7 +25,14 @@ Statement: Box<Node> = {
 Expr: Box<Node> = {
     <f:Expr> "+" <e:Factor> => Box::new(Node::Operation(f, Operator::Add, e)),
     <f:Expr> "-" <e:Factor> => Box::new(Node::Operation(f, Operator::Sub, e)),
-    <n:Name> "=" <e:Factor>  => Box::new(Node::Operation(n, Operator::Equals, e)),
+    <n:Name> "=" <e:Factor> => Box::new(Node::Operation(n, Operator::Equals, e)),
+    <n:Name> "." <e:Factor> => Box::new(Node::Operation(n, Operator::Dot, e)),
+    <f:Expr> "==" <e:Factor> => Box::new(Node::Operation(f, Operator::EqualTo, e)),
+    <f:Expr> "!=" <e:Factor> => Box::new(Node::Operation(f, Operator::NotEqualTo, e)),
+    <f:Expr> ">" <e:Factor> => Box::new(Node::Operation(f, Operator::Greater, e)),
+    <f:Expr> "<" <e:Factor> => Box::new(Node::Operation(f, Operator::Less, e)),
+    <f:Expr> ">=" <e:Factor> => Box::new(Node::Operation(f, Operator::GreaterOrEq, e)),
+    <f:Expr> "<=" <e:Factor> => Box::new(Node::Operation(f, Operator::LessOrEq, e)),
     Factor
 }
 
