@@ -14,12 +14,11 @@ pub enum Node {
     BoolLiteral(bool),
     Name(String),
     Call(Box<Node>, Vec<Box<Node>>), //name, args
-    MethodCall(Box<Node>, Vec<Node>),
     Block(Vec<Box<Node>>),
     Func(Box<Node>, Vec<Box<Node>>, Vec<Box<Node>>), //Name, params, function body
     Class(Box<Node>, Box<Node>),                     //name, body
     New(Box<Node>, Vec<Box<Node>>),                  //name params
-    Loop(Box<String>, Box<Node>, Box<Node>),         //loop keyword, condition, block
+    Loop(String, Box<Node>, Box<Node>),              //loop keyword, condition, block
     ForLoopDec(Box<Node>, Box<Node>, Box<Node>),     //declaration, condition, incrementation
     Statement(Box<Node>),
     ReturnVal(Box<Node>),

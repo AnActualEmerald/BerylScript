@@ -201,7 +201,7 @@ impl Runtime {
             Node::Name(n) => res = frame.get_var_copy(n),
             Node::Func(n, p, b) => res = self.def_func(n, p, b)?, //don't need the stackframe here because functions are stored on the heap
             Node::Statement(e) => res = self.walk_tree(&**e, frame)?,
-            Node::Loop(ty, con, block) => res = self.do_loop(&**ty, &**con, &**block, frame)?,
+            Node::Loop(ty, con, block) => res = self.do_loop(&ty, &**con, &**block, frame)?,
             Node::IfStatement(con, body, branch) => res = self.do_if(con, body, branch, frame)?,
             Node::Array(v) => res = self.create_array(v, frame)?,
             Node::Index(ident, index) => res = self.index_array(ident, index, frame)?,
@@ -354,7 +354,7 @@ impl Runtime {
                                 Err(format!("{} has no property {}", obj, n))
                             }
                         }
-                        Node::Call(n, p) => self.do_method(&obj, right, frame),
+                        Node::Call(n, a) => self.do_method(&obj, &**n, a, frame),
                         _ => Err(format!("Expected a member or method call, got {}", right)),
                     }
                     // if let Some(v) = obj.get_prop(&right) {
@@ -505,44 +505,41 @@ impl Runtime {
     fn do_method(
         &mut self,
         obj: &EmObject,
-        method: &Node,
+        member: &Node,
+        args: &Vec<Box<Node>>,
         frame: &mut StackFrame,
     ) -> Result<Value, String> {
-        if let Node::Call(member, args) = method {
-            let func = obj.get_prop(&*member.inner());
-            match func {
-                Some(Value::Function(n, p, body)) => {
-                    if args.len() != p.len() - 1 {
-                        Err(format!(
-                            "Method {} for {} takes {} arguments, found {}",
-                            n,
-                            obj.get_prop("~name").unwrap(),
-                            p.len(),
-                            args.len()
-                        ))
-                    } else {
-                        let mut func_frame = StackFrame::new();
-                        func_frame.set_var(String::from("self"), Value::Object(obj.clone()));
-                        for (i, e) in args.iter().enumerate() {
-                            if let Value::Name(arg) = &p[i + 1] {
-                                let val = self.walk_tree(&**e, frame)?;
-                                match val {
-                                    Value::Name(n) => {
-                                        let tmp = frame.get_var(&n).clone();
-                                        func_frame.set_var(arg.to_string(), tmp);
-                                        //I'd really like to not have to copy here
-                                    }
-                                    _ => func_frame.set_var(arg.to_string(), val),
+        let func = obj.get_prop(&*member.inner());
+        match func {
+            Some(Value::Function(n, p, body)) => {
+                if args.len() != p.len() - 1 {
+                    Err(format!(
+                        "Method {} for {} takes {} arguments, found {}",
+                        n,
+                        obj.get_prop("~name").unwrap(),
+                        p.len(),
+                        args.len()
+                    ))
+                } else {
+                    let mut func_frame = StackFrame::new();
+                    func_frame.set_var(String::from("self"), Value::Object(obj.clone()));
+                    for (i, e) in args.iter().enumerate() {
+                        if let Value::Name(arg) = &p[i + 1] {
+                            let val = self.walk_tree(&**e, frame)?;
+                            match val {
+                                Value::Name(n) => {
+                                    let tmp = frame.get_var(&n).clone();
+                                    func_frame.set_var(arg.to_string(), tmp);
+                                    //I'd really like to not have to copy here
                                 }
+                                _ => func_frame.set_var(arg.to_string(), val),
                             }
                         }
-                        self.walk_tree(body, &mut func_frame)
                     }
+                    self.walk_tree(body, &mut func_frame)
                 }
-                _ => Err(format!("Expected function, got {:?}", func)),
             }
-        } else {
-            Err(format!("Expected a method call"))
+            _ => Err(format!("Expected function, got {:?}", func)),
         }
     }
     ///Performs an if statement and any of its relevant branches

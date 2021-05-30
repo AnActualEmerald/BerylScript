@@ -11,32 +11,38 @@ pub Node: Box<Node> = {
 Term: Box<Node> = {
     <Num> => Box::new(Node::NumLiteral(<>)),
     <EmStr> => Box::new(Node::StrLiteral(<>)),
-    <EmBool> => Box::new(Node::BoolLiteral(<>)),
     <List> => Box::new(Node::Array(<>)),
     <Name> <Tuple> => Box::new(Node::Call(<>)),
     <Name> <Index> => Box::new(Node::Index(<>)),
     "new" <Name> <Tuple> => Box::new(Node::New(<>)),
+    EmBool,
     Name,
     "(" <Expr> ")",
+    "!" <Expr> => Box::new(Node::Not(<>)),
 }
 
 Statement: Box<Node> = {
     "fn" <Name> <Tuple> <Block> => Box::new(Node::Func(<>)),
     "class" <n:Name> <b:Block> => Box::new(Node::Class(n, Box::new(Node::Block(b)))),
     "return" <Expr> ";" => Box::new(Node::ReturnVal(<>)),
+    "return" ";" => Box::new(Node::ReturnVal(Box::new(Node::None))),
+    "while" "(" <e:Expr> ")" <n:Node> => Box::new(Node::Loop("while".to_string(), e, n)),
+    ForLoop,
+    IfStatement,
+    <n:Assignable> "=" <e:Expr> ";" => Box::new(Node::Operation(n, Operator::Equals, e)),
+    <a:Assignable> "+=" <e:Expr> ";" => Box::new(Node::Operation(a.clone(), Operator::Equals, Box::new(Node::Operation(a, Operator::Add, e)))),
+    <a:Assignable> "-=" <e:Expr> ";" => Box::new(Node::Operation(a.clone(), Operator::Equals, Box::new(Node::Operation(a, Operator::Sub, e)))),
+    <a:Assignable> "*=" <e:Expr> ";" => Box::new(Node::Operation(a.clone(), Operator::Equals, Box::new(Node::Operation(a, Operator::Mul, e)))),
+    <a:Assignable> "/=" <e:Expr> ";" => Box::new(Node::Operation(a.clone(), Operator::Equals, Box::new(Node::Operation(a, Operator::Div, e)))),
     <Expr> ";",
 }
 
 Expr: Box<Node> = {
     <f:Expr> "+" <e:Factor> => Box::new(Node::Operation(f, Operator::Add, e)),
     <f:Expr> "-" <e:Factor> => Box::new(Node::Operation(f, Operator::Sub, e)),
-    <n:Assignable> "=" <e:Factor> => Box::new(Node::Operation(n, Operator::Equals, e)),
-    <f:Expr> "==" <e:Factor> => Box::new(Node::Operation(f, Operator::EqualTo, e)),
-    <f:Expr> "!=" <e:Factor> => Box::new(Node::Operation(f, Operator::NotEqualTo, e)),
-    <f:Expr> ">" <e:Factor> => Box::new(Node::Operation(f, Operator::Greater, e)),
-    <f:Expr> "<" <e:Factor> => Box::new(Node::Operation(f, Operator::Less, e)),
-    <f:Expr> ">=" <e:Factor> => Box::new(Node::Operation(f, Operator::GreaterOrEq, e)),
-    <f:Expr> "<=" <e:Factor> => Box::new(Node::Operation(f, Operator::LessOrEq, e)),
+    <a:Assignable> "++" => Box::new(Node::Operation(a.clone(), Operator::Equals, Box::new(Node::Operation(a, Operator::Add, Box::new(Node::NumLiteral(1.0f32)))))),
+    <a:Assignable> "--" => Box::new(Node::Operation(a.clone(), Operator::Equals, Box::new(Node::Operation(a, Operator::Sub, Box::new(Node::NumLiteral(1.0f32)))))),
+    BoolOp,
     Factor
 }
 
@@ -54,6 +60,36 @@ Assignable: Box<Node> = {
     <Name> <Index> => Box::new(Node::Index(<>)),
 }
 
+ForLoop: Box<Node> = {
+    "for" "(" <n:Assignable> "=" <e:Expr> ";" <con:Expr> ";" <inc:Expr> ")" <b:Block> => Box::new(Node::Loop("for".to_string(), 
+    Box::new(Node::ForLoopDec(Box::new(Node::Operation(n, Operator::Equals, e)), con, inc)),
+    Box::new(Node::Block(b)))),
+    "for" "(" <con:Expr> ";" <inc:Expr> ")" <b:Block> =>  Box::new(Node::Loop("for".to_string(), 
+    Box::new(Node::ForLoopDec(Box::new(Node::None), con, inc)),
+    Box::new(Node::Block(b)))),
+}
+
+IfStatement: Box<Node> = {
+    "if" "(" <c:Expr> ")" <n:Block> <e:Else?> => match e {
+        None => Box::new(Node::IfStatement(c, Box::new(Node::Block(n)), Box::new(Node::None))),
+        Some(e) => Box::new(Node::IfStatement(c, Box::new(Node::Block(n)), e))
+    },
+}
+
+Else: Box<Node> = {
+    "else" <IfStatement> => <>,
+    "else" <n:Block> => Box::new(Node::ElseStatement(Box::new(Node::Block(n))))
+}
+
+BoolOp: Box<Node> = {
+    <f:Expr> "==" <e:Factor> => Box::new(Node::Operation(f, Operator::EqualTo, e)),
+    <f:Expr> "!=" <e:Factor> => Box::new(Node::Operation(f, Operator::NotEqualTo, e)),
+    <f:Expr> ">" <e:Factor> => Box::new(Node::Operation(f, Operator::Greater, e)),
+    <f:Expr> "<" <e:Factor> => Box::new(Node::Operation(f, Operator::Less, e)),
+    <f:Expr> ">=" <e:Factor> => Box::new(Node::Operation(f, Operator::GreaterOrEq, e)),
+    <f:Expr> "<=" <e:Factor> => Box::new(Node::Operation(f, Operator::LessOrEq, e)),
+}
+
 // //--Special rules for making class definitions--//
 // Method: Box<Node> = <Name> <Tuple> <Block> =>  Box::new(Node::Func(<>));
 // ClassBody: Box<Node> = "{" <Method+> "}" => Box::new(Node::Block(<>));
@@ -68,12 +104,12 @@ List: Vec<Box<Node>> = "[" <Comma<Expr>> "]" => <>;
 Num: f32 = <n:r"[0-9]+"> => f32::from_str(n).unwrap();
 // I cannot for the life of me figure out how to make it match the quotes exclusively
 EmStr: String = <s:r#""[^"]*""#> => s.strip_prefix('"').unwrap().strip_suffix('"').unwrap().to_string();
-EmBool: bool = {
-    <t:r"true"> => true,
-    <f:r"false"> => false
+EmBool: Box<Node> = {
+    <t:"true"> => Box::new(Node::BoolLiteral(true)),
+    <f:"false"> => Box::new(Node::BoolLiteral(false))
 }
 
-Name: Box<Node> = <n:r"[A-Za-z~][A-Za-z0-9]+"> => Box::new(Node::Name(format!("{}", n)));
+Name: Box<Node> = <n:r"[A-Za-z~][A-Za-z0-9]*"> => Box::new(Node::Name(format!("{}", n)));
 
 Comma<T>: Vec<T> = {
     <mut v:(<T> ",")*> <e:T?> => match e {
@@ -93,9 +129,14 @@ match{
     "fn",
     "new",
     "return",
+    "while",
+    "for",
+    "if",
+    "else",
     r"\s*" => { }, // The default whitespace skipping is disabled an `ignore pattern` is specified
     r"//[^\n\r]*[\n\r]*" => { }, // Skip `// comments`
     r"/\*([^\*]*\*+[^\*/])*([^\*]*\*+|[^\*])*\*/" => { },  // Skip `/* comments */`
+    r"#![^\n\r]*[\n\r]*" => { }, //skip any shebang lines
 }else {
     _
 }
