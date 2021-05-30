@@ -43,13 +43,13 @@ Tuple: Vec<Box<Node>> = <c:("(" <Comma<Expr>> ")")> => c;
 //--primitives--//
 Num: f32 = <n:r"[0-9]+"> => f32::from_str(n).unwrap();
 // I cannot for the life of me figure out how to make it match the quotes exclusively
-EmStr: String = <s:r#""\s*[[:ascii:]]\s*""#> => format!("{}", s);//strip_prefix('"').unwrap().strip_suffix('"').unwrap());
+EmStr: String = <s:r#""[^"]*""#> => s.strip_prefix('"').unwrap().strip_suffix('"').unwrap().to_string();
 EmBool: bool = {
     <t:r"true"> => true,
     <f:r"false"> => false
 }
 
-Name: Box<Node> = <n:r"[A-Za-z_~]\w*"> => Box::new(Node::Name(format!("{}", n)));
+Name: Box<Node> = <n:r"[[:alpha:]]\w*"> => Box::new(Node::Name(format!("{}", n)));
 
 Comma<T>: Vec<T> = {
     <mut v:(<T> ",")*> <e:T?> => match e {

@@ -1,12 +1,13 @@
 mod builtins;
-#[cfg(test)]
-mod tests;
+// #[cfg(test)]
+// mod tests;
 mod types;
 
 use crate::interpreter::types::EmObject;
 use crate::interpreter::types::Indexable;
 use crate::parser::{Node, Operator};
 
+use regex::Regex;
 use std::fmt;
 use std::{cell::RefCell, collections::HashMap};
 
@@ -28,7 +29,11 @@ impl std::fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Value::Float(s) => write!(f, "{}", s),
-            Value::EmString(s) => write!(f, "{}", s),
+            Value::EmString(s) => {
+                let re = Regex::new(r"esc_QUOTE").unwrap(); // this is terrible and I hate it
+                let unescaped = re.replace_all(s, "\"");
+                write!(f, "{}", unescaped)
+            }
             // Value::Char(c) => write!(f, "{}", c),
             Value::Name(n) => write!(f, "{}", n),
             Value::Null => write!(f, "null"),

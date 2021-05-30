@@ -1,3 +1,4 @@
+use regex::Regex;
 use std::fmt::Display;
 
 lalrpop_mod!(grammar);
@@ -73,7 +74,10 @@ impl Node {
 }
 
 pub fn parse<'input>(text: &'input str) -> Option<Box<Node>> {
-    match grammar::NodeParser::new().parse(text) {
+    //make all escaped quotes work with the lalrpop grammar
+    let re = Regex::new(r#"\\""#).unwrap();
+    let fixed_input = re.replace_all(text, "esc_QUOTE");
+    match grammar::NodeParser::new().parse(&fixed_input) {
         Ok(n) => Some(n),
         Err(e) => {
             eprintln!("{}", e);

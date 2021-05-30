@@ -1,0 +1,3 @@
+fn main(args) {	
+	println("Hello \"world\" " + "Good bye world");
+}
