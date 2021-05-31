@@ -2,9 +2,12 @@ fn main(args) {
 	name = readln("What is your name? ");
 	age = number(readln("How old are you? "));
 	user = new Person(name, age);
-	user.alive = true;
 	user.greet();
-	if (user.age >= 50 XX user.alive){
+	if (!age) {
+		println("Age must be a number, you dork");
+		return;
+	}
+	if (user.age >= 50){
 		println("Man, you're old");
 	} else if (user.age < 18){
 		println("Yeah you're a little too young");

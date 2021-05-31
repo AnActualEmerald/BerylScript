@@ -3,9 +3,8 @@ mod builtins;
 // mod tests;
 mod types;
 
-use crate::interpreter::types::EmObject;
-use crate::interpreter::types::Indexable;
 use crate::parser::{Node, Operator};
+use types::{EmObject, Indexable};
 
 use regex::Regex;
 use std::fmt;
@@ -183,10 +182,10 @@ impl Runtime {
                 let mut ret = Value::Null;
                 for e in v.iter() {
                     match &**e {
-                        /*When we run into a ReturnVal, it needs special treatment so we know to stop executing the
-                         *current block once we get whatever the value is
-                         **/
+                        //When we run into a ReturnVal, it needs special treatment so we know to stop executing the
+                        //current block once we get whatever the value is
                         Node::ReturnVal(v) => {
+                            self.returning = true;
                             ret = self.walk_tree(&*v, frame)?;
                             break;
                         }
@@ -195,6 +194,7 @@ impl Runtime {
                         }
                     }
                     if self.returning {
+                        self.returning = true;
                         //if the returning flag has been set, then break out of the loop and stop executing this block
                         //This is for return statements that don't return anything
                         break;
@@ -218,10 +218,12 @@ impl Runtime {
             Node::New(name, args) => res = self.do_init(name, args, frame)?,
             Node::Class(name, body) => res = self.define_class(&**name, &**body, frame)?,
             Node::Not(n) => res = Value::EmBool(!self.walk_tree(&**n, frame)?.booly()),
+            Node::ReturnVal(v) => {
+                res = self.walk_tree(&**v, frame)?;
+                self.returning = true;
+            }
             _ => res = Value::Null,
         }
-        //Reset the returning flag, since we're returning whatever value we got anyways
-        self.returning = false;
         Ok(res)
     }
 
@@ -241,7 +243,7 @@ impl Runtime {
                 //     "Condition is currently: {:?}",
                 //     self.walk_tree(&condition, frame)
                 // );
-                while self.walk_tree(&condition, frame)? == Value::EmBool(true) {
+                while self.walk_tree(&condition, frame)? == Value::EmBool(true) && !self.returning {
                     ret = self.walk_tree(&block, frame)?;
                     if self.returning {
                         break;
@@ -255,7 +257,7 @@ impl Runtime {
                     if let Node::None = **dec {
                         self.walk_tree(&dec, frame)?;
                     }
-                    while self.walk_tree(&con, frame)? == Value::EmBool(true) {
+                    while self.walk_tree(&con, frame)? == Value::EmBool(true) && !self.returning {
                         //walk the tree to execute the loop body
                         ret = self.walk_tree(&block, frame)?;
                         if self.returning {
@@ -265,7 +267,6 @@ impl Runtime {
                         self.walk_tree(&inc, frame)?;
                     }
                 }
-
                 Ok(ret)
             }
             _ => Ok(Value::Null),
@@ -429,31 +430,7 @@ impl Runtime {
         }
     }
 
-    fn keyword(
-        &mut self,
-        name: &Node,
-        value: &Node,
-        frame: &mut StackFrame,
-    ) -> Result<Value, String> {
-        // if let Expression::Key(s) = name {
-        //     let tmp = match value {
-        //         Node::Call(n, args) => self.do_call(n, args, frame)?,
-
-        //         _ => self.walk_tree(&value, frame)?,
-        //     };
-        //     match s.as_str() {
-        //         "return" => {
-        //             self.returning = true;
-        //             return Ok(tmp);
-        //         }
-        //         _ => {}
-        //     }
-        // }
-
-        Ok(Value::Null)
-    }
-
-    ///Executes a keyword or function call
+    ///Executes a function call
     fn do_call(
         &mut self,
         name: &Node,
@@ -498,7 +475,7 @@ impl Runtime {
                                         }
                                     }
                                 }
-                                self.walk_tree(&body, &mut func_frame)
+                                let ret = self.walk_tree(&body, &mut func_frame);
                                 //this shouldn't be necessary since Rust will destroy the old
                                 //stack frame anyways when it goes out of  scope
                                 // params.iter().for_each(|e| {
@@ -506,6 +483,8 @@ impl Runtime {
                                 //         frame.free_var(n)
                                 //     }
                                 // });
+                                self.returning = false;
+                                ret
                             }
                         }
                         _ => Err(format!("Expected function, found {}", func.borrow())),
@@ -552,7 +531,7 @@ impl Runtime {
                             }
                         }
                     }
-                    self.walk_tree(body, &mut func_frame)
+                    self.walk_tree(&body, &mut func_frame)
                 }
             }
             _ => Err(format!("Expected function, got {:?}", func)),
@@ -566,12 +545,14 @@ impl Runtime {
         branches: &Node,
         frame: &mut StackFrame,
     ) -> Result<Value, String> {
-        if self.walk_tree(condition, frame)? == Value::EmBool(true) {
+        if self.walk_tree(condition, frame)? == Value::EmBool(true) && !self.returning {
             self.walk_tree(body, frame)
         } else if let Node::IfStatement(con, body, branch) = branches {
             self.do_if(con, body, branch, frame)
-        } else {
+        } else if !self.returning {
             self.walk_tree(branches, frame)
+        } else {
+            Ok(Value::Null)
         }
     }
 
@@ -616,7 +597,7 @@ impl Runtime {
                             }
                         }
                     }
-                    self.walk_tree(body, &mut func_frame)?;
+                    self.walk_tree(&body, &mut func_frame)?;
 
                     //should figure out a way to get ownership from a stackframe
                     Ok(func_frame.get_var("self").clone())
