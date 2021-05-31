@@ -23,5 +23,5 @@ name = "beryl_lib"
 path = "src/lib.rs"
 
 [[bin]]
-name = "beryl-bin"
+name = "berylvm"
 path = "src/bin.rs"

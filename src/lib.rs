@@ -6,6 +6,8 @@ extern crate lalrpop_util;
 mod interpreter;
 mod parser;
 
+pub use interpreter::{repl_run, Runtime, StackFrame};
+
 use parser::Node;
 
 ///Runs the lexer, parser, and interpreter on the provided string
