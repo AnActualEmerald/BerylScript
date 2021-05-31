@@ -25,6 +25,10 @@ pub fn run(data: String, args: &Vec<&str>, debug: bool) {
     }
 }
 
+pub fn parse(data: String) -> Box<Node> {
+    parser::parse(&data).unwrap()
+}
+
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
