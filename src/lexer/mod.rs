@@ -14,6 +14,7 @@ struct Lexer<'a> {
     tokens: Vec<Token>
 }
 
+//heavily inspired by https://craftinginterpreters.com
 impl<'a> Lexer<'a> {
     fn new(src: &'a str) -> Self{
         Lexer{
